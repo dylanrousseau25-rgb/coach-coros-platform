@@ -1,0 +1,12 @@
+{
+  "name": "coach-coros-platform",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "test": "node test.mjs"
+  },
+  "engines": {"node": ">=20"}
+}

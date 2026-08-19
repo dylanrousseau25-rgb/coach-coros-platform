@@ -1,0 +1,11 @@
+{
+  "name": "Coach COROS",
+  "short_name": "Coach COROS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090c10",
+  "theme_color": "#090c10",
+  "description": "Coach sportif adaptatif multi-objectifs connecté à tes données COROS",
+  "orientation": "portrait-primary"
+}

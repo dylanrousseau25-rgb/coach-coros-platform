@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 3,
+  "athlete": {
+    "id": "athlete-1",
+    "displayName": "",
+    "approach": "Progression prudente",
+    "sports": ["Course à pied", "Gravel", "Vélo de route", "Renforcement léger", "Corde à sauter"],
+    "availability": "6 à 7 créneaux / semaine",
+    "injuryNotes": "Pas de douleur actuelle. Ancienne douleur à l'avant du mollet. Les squats peuvent créer une gêne derrière la jambe.",
+    "weeklyConstraints": {
+      "weekdayMorning": "45 min",
+      "weekdayLunch": "1 h 45 max",
+      "weekdayEvening": "2 h max",
+      "weekend": "Flexible"
+    }
+  },
+  "heartRateZones": {
+    "source": "COROS",
+    "model": "Zone Seuil sup.",
+    "thresholdHr": 168,
+    "zones": [
+      {"zone": 1, "name": "Récupération", "range": "< 134 bpm", "percent": "<80%", "min": null, "max": 133},
+      {"zone": 2, "name": "Aérobie (endur.)", "range": "134–151 bpm", "percent": "80–90%", "min": 134, "max": 151},
+      {"zone": 3, "name": "Aérobie (puiss.)", "range": "152–160 bpm", "percent": "91–95%", "min": 152, "max": 160},
+      {"zone": 4, "name": "Seuil", "range": "161–171 bpm", "percent": "96–102%", "min": 161, "max": 171},
+      {"zone": 5, "name": "Anaérobie (endur.)", "range": "172–178 bpm", "percent": "103–106%", "min": 172, "max": 178},
+      {"zone": 6, "name": "Anaérobie (puiss.)", "range": "> 178 bpm", "percent": ">106%", "min": 179, "max": null}
+    ]
+  },
+  "metrics": {
+    "vo2max": 45,
+    "thresholdPace": "5:34 /km",
+    "halfPrediction": "2:08:00",
+    "recovery": 100,
+    "shortTermLoad": 36,
+    "longTermLoad": 64,
+    "loadRatio": 0.56,
+    "sleepScore": 71,
+    "sleepDuration": "6 h 36"
+  },
+  "objectives": [
+    {
+      "id": "obj-20k-2026",
+      "title": "20 km en moins de 2 h",
+      "sport": "Course à pied",
+      "type": "Course",
+      "eventName": "20 km",
+      "date": "2026-10-11",
+      "target": "< 2 h",
+      "targetPace": "6:00 /km",
+      "status": "active",
+      "planId": "plan-20k-2026",
+      "createdAt": "2026-08-19T08:00:00+02:00"
+    }
+  ],
+  "plans": [
+    {
+      "id": "plan-20k-2026",
+      "objectiveId": "obj-20k-2026",
+      "name": "Préparation 20 km",
+      "status": "active",
+      "startDate": "2026-08-19",
+      "endDate": "2026-10-11",
+      "totalWeeks": 8,
+      "currentWeek": 1,
+      "phase": "Reprise & base",
+      "principle": "Progression prudente, fréquence cardiaque COROS prioritaire sur les footings faciles.",
+      "sessions": [
+        {"id":"sess-0819","date":"2026-08-19","day":"Mer","sport":"Gravel / vélo","title":"Récupération active","duration":"45–60 min","details":"Très facile. Privilégier Z1 si jambes lourdes.","status":"today","zone":1,"zoneLabel":"Z1 → bas Z2","hrTarget":"< 151 bpm","rpeTarget":"2–3/10","paceTarget":"FC prioritaire"},
+        {"id":"sess-0820","date":"2026-08-20","day":"Jeu","sport":"Course à pied","title":"Endurance fondamentale","duration":"40–45 min","details":"Conversation fluide, ralentir si la FC reste >151 bpm.","status":"planned","zone":2,"zoneLabel":"Z2","hrTarget":"134–151 bpm","rpeTarget":"2–3/10","paceTarget":"Libre"},
+        {"id":"sess-0821","date":"2026-08-21","day":"Ven","sport":"Vélo + renfo","title":"Endurance facile + renfo","duration":"60–90 min + 10 min","details":"Renforcement sans douleur, éviter de forcer les squats.","status":"planned","zone":1,"zoneLabel":"Z1 → Z2","hrTarget":"< 151 bpm","rpeTarget":"2–3/10","paceTarget":"—"},
+        {"id":"sess-0822","date":"2026-08-22","day":"Sam","sport":"Course à pied","title":"Sortie longue facile","duration":"55–60 min","details":"Rester patient et régulier en Z2.","status":"planned","zone":2,"zoneLabel":"Z2","hrTarget":"134–151 bpm","rpeTarget":"2–3/10","paceTarget":"Libre"},
+        {"id":"sess-0823","date":"2026-08-23","day":"Dim","sport":"Gravel","title":"Endurance aérobie","duration":"1 h 30–2 h","details":"Volume sans impact, alimentation/hydratation normales.","status":"planned","zone":2,"zoneLabel":"Z2","hrTarget":"134–151 bpm","rpeTarget":"2–3/10","paceTarget":"—"},
+        {"id":"sess-0824","date":"2026-08-24","day":"Lun","sport":"Repos","title":"Repos / mobilité","duration":"20 min optionnel","details":"Mobilité douce uniquement si utile.","status":"planned","zone":1,"zoneLabel":"Repos","hrTarget":"—","rpeTarget":"1/10","paceTarget":"—"},
+        {"id":"sess-0825","date":"2026-08-25","day":"Mar","sport":"Course à pied","title":"Premiers blocs allure 20 km","duration":"≈ 60 min","details":"15 min facile + 4×5 min à 6:00–6:10/km, récup 3 min + 10 min facile.","status":"planned","zone":3,"zoneLabel":"Z3 → Z4","hrTarget":"152–171 bpm","rpeTarget":"5–6/10","paceTarget":"6:00–6:10 /km"}
+      ]
+    }
+  ],
+  "activities": [
+    {
+      "id": "activity-20260818-run",
+      "date": "2026-08-18",
+      "sport": "Course extérieure",
+      "distance": "6,36 km",
+      "duration": "42:12",
+      "pace": "6:38 /km",
+      "avgHr": 163,
+      "maxHr": 179,
+      "cadence": 154,
+      "elevation": "42 m D+",
+      "trainingLoad": 148,
+      "trainingFocus": "Tempo",
+      "source": "COROS",
+      "coachNote": "COROS a classé cette séance Tempo. Avec 163 bpm de moyenne, la FC moyenne se situe en Z4 (161–171 bpm), au-dessus de la zone d'endurance fondamentale 134–151 bpm."
+    }
+  ],
+  "feedback": [],
+  "coachMessages": [
+    {"at":"2026-08-19T10:00:00+02:00","text":"Le 20 km du 11 octobre est ton premier objectif actif. L'application est conçue pour conserver ton historique et accueillir les objectifs suivants sans être reconstruite."}
+  ]
+}
