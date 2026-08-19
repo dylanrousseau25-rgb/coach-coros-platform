@@ -3,295 +3,79 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#090c10" />
+  <meta name="theme-color" content="#f7f8fa" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Coach COROS" />
   <title>Coach COROS</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <header class="app-header">
+  <div class="app-shell" id="appShell">
+    <header class="topbar">
       <div>
-        <div class="eyebrow">COACH COROS</div>
-        <h1 id="headerTitle">Aujourd’hui</h1>
-        <p id="headerSubtitle">Ton entraînement, pas un plan figé.</p>
+        <p class="date-line" id="todayDate">Aujourd’hui</p>
+        <h1 id="screenTitle">Bonjour 👋</h1>
       </div>
-      <button class="profile-button" id="profileButton" type="button" aria-label="Ouvrir mon profil">Profil</button>
+      <button class="avatar-button" id="profileButton" type="button" aria-label="Ouvrir le profil"><span>DR</span></button>
     </header>
-
     <main>
       <section class="screen active" data-screen-panel="today">
-        <section class="status-strip" aria-label="État du jour">
-          <article class="mini-stat">
-            <span>Récup.</span>
-            <strong id="recovery">—</strong>
-            <small id="recoveryLabel">COROS</small>
-          </article>
-          <article class="mini-stat">
-            <span>VO₂max</span>
-            <strong id="vo2max">—</strong>
-            <small>COROS</small>
-          </article>
-          <article class="mini-stat">
-            <span>Charge</span>
-            <strong id="shortLoad">—</strong>
-            <small id="loadLabel">court terme</small>
-          </article>
-        </section>
-
-        <article class="card objective-summary" id="activeObjectiveCard">
-          <div class="card-head compact">
-            <div>
-              <span class="section-kicker">OBJECTIF ACTIF</span>
-              <h2 id="activeObjectiveTitle">—</h2>
-              <p id="activeObjectiveMeta">—</p>
-            </div>
-            <div class="days-badge"><strong id="daysToObjective">—</strong><span>jours</span></div>
-          </div>
-          <div class="objective-row">
-            <span id="activeObjectiveTarget">—</span>
-            <span id="activePlanPhase">—</span>
-          </div>
+        <article class="card status-card">
+          <div class="section-heading"><div><span class="eyebrow">ÉTAT DU JOUR</span><h2><span class="status-dot good"></span><span id="recoveryLabel">Très bonne récupération</span></h2></div><button class="icon-button" type="button" data-open-progress aria-label="Voir les progrès">›</button></div>
+          <div class="status-metrics"><div class="status-metric"><span class="metric-icon">▥</span><strong id="recovery">—</strong><small>Récupération</small></div><div class="status-metric"><span class="metric-icon moon">◒</span><strong id="sleepDuration">—</strong><small>Sommeil</small></div><div class="status-metric"><span class="metric-icon load">◆</span><strong id="shortLoad">—</strong><small>Charge</small></div></div>
+          <p class="insight" id="readinessInsight">Ton état du jour est en cours d’analyse.</p>
         </article>
-
-        <article class="session-card accent-card" id="todaySessionCard">
-          <div class="card-head">
-            <div>
-              <span class="section-kicker">SÉANCE DU JOUR</span>
-              <h2 id="todayTitle">—</h2>
-              <p id="todaySport">—</p>
-            </div>
-            <span class="duration-pill" id="todayDuration">—</span>
-          </div>
-
-          <div class="zone-target">
-            <div>
-              <span class="metric-label">Zone cardio cible</span>
-              <strong id="todayZoneName">—</strong>
-            </div>
-            <div class="zone-bpm-value">
-              <span class="metric-label">Fréquence cible</span>
-              <strong id="todayZoneBpm">—</strong>
-            </div>
-          </div>
-
-          <div class="zone-track" aria-hidden="true">
-            <span class="z1"></span><span class="z2"></span><span class="z3"></span><span class="z4"></span><span class="z5"></span><span class="z6"></span>
-          </div>
-          <div class="zone-track-labels"><span>Z1</span><span>Z2</span><span>Z3</span><span>Z4</span><span>Z5</span><span>Z6</span></div>
-
-          <div class="session-secondary">
-            <div><span>RPE</span><strong id="todayRpe">—</strong></div>
-            <div><span>Allure</span><strong id="todayPace">—</strong></div>
-          </div>
-
-          <p class="coach-explain" id="todayDetails">—</p>
-
-          <div class="actions">
-            <button class="button primary" id="doneBtn" type="button">J’ai terminé</button>
-            <button class="button secondary" id="adaptBtn" type="button">Adapter</button>
-          </div>
+        <div class="section-label">SÉANCE DU JOUR</div>
+        <article class="card workout-card" id="todaySessionCard">
+          <div class="workout-title-row"><div class="sport-icon run" id="todaySportIcon">🏃</div><div class="grow"><h2 id="todayTitle">—</h2><p id="todaySport">—</p></div></div>
+          <div class="workout-facts"><div><span>◷</span><strong id="todayDuration">—</strong></div><div><span>♥</span><strong id="todayZoneBpm">—</strong><small id="todayZoneName">—</small></div><div><span>◇</span><strong id="todayRpe">—</strong><small>RPE</small></div></div>
+          <div class="coach-tip"><span class="coach-star">✦</span><div><strong>CONSEIL DU COACH</strong><p id="todayDetails">—</p></div></div>
+          <button class="button primary full" id="viewSessionButton" type="button">Voir la séance</button>
+          <div class="split-actions"><button class="button ghost" id="adaptBtn" type="button">Adapter</button><button class="button success" id="doneBtn" type="button">J’ai terminé</button></div>
         </article>
-
-        <article class="card coach-glance">
-          <span class="section-kicker">COACH</span>
-          <h3>La séance suit ton état, pas l’inverse.</h3>
-          <p id="coachGlanceText">Le plan actif peut évoluer après chaque activité et chaque feedback.</p>
-          <button class="text-button" id="askCoachToday" type="button">Parler au coach →</button>
+        <div class="section-label">OBJECTIF ACTIF</div>
+        <article class="card objective-card" id="activeObjectiveCard">
+          <button class="card-link" id="manageGoalFromToday" type="button" aria-label="Gérer l’objectif"></button>
+          <div class="objective-head"><span class="trophy">🏆</span><div class="grow"><h2 id="activeObjectiveTitle">—</h2><p id="activeObjectiveMeta">—</p></div><span class="chevron">›</span></div>
+          <div class="objective-phase"><span id="activePlanPhase">—</span><strong id="objectiveProgressLabel">—</strong></div><div class="progress-track"><span id="objectiveProgressBar"></span></div>
         </article>
+        <div class="section-label">CETTE SEMAINE</div>
+        <article class="card week-summary-card"><div class="week-summary-top"><strong id="weekProgressText">—</strong><div class="week-dots" id="weekDots"></div></div><p>Prochaine séance clé</p><strong id="nextKeySession">—</strong></article>
       </section>
-
       <section class="screen" data-screen-panel="plan">
-        <div class="screen-title">
-          <div>
-            <span class="section-kicker">PLAN ACTIF</span>
-            <h2 id="planName">—</h2>
-            <p id="planMeta">—</p>
-          </div>
-          <span class="soft-pill" id="planWeek">—</span>
-        </div>
-
-        <article class="card plan-principle">
-          <span class="section-kicker">PRINCIPE</span>
-          <p id="planPrinciple">—</p>
-        </article>
-
-        <div class="week-list" id="week"></div>
-
-        <article class="card coach-rule-card">
-          <span class="section-kicker">RÉFÉRENTIEL COROS</span>
-          <h3>Les footings faciles sont pilotés par la FC.</h3>
-          <p>Ton endurance fondamentale actuelle est <strong>134–151 bpm</strong>. L’allure s’adapte au terrain, au vent, à la chaleur et à la fatigue.</p>
-        </article>
+        <div class="page-title"><h1>Plan</h1></div>
+        <article class="card plan-objective-card"><div class="eyebrow">🏆 OBJECTIF ACTIF</div><h2 id="planObjectiveTitle">—</h2><p id="planObjectiveMeta">—</p><div class="objective-phase"><span id="planPhase">—</span><strong id="planProgressLabel">—</strong></div><div class="progress-track"><span id="planProgressBar"></span></div><button class="text-link" id="manageGoalButton" type="button">Gérer l’objectif ›</button></article>
+        <div class="week-selector"><button class="icon-button" type="button" aria-label="Semaine précédente">‹</button><div><strong id="planWeek">Semaine</strong><small id="planWeekDates">—</small></div><button class="icon-button" type="button" aria-label="Semaine suivante">›</button></div>
+        <div class="week-list" id="week"></div><button class="button soft full plan-more" type="button">Voir les semaines suivantes⌄</button>
       </section>
-
-      <section class="screen" data-screen-panel="goals">
-        <div class="screen-title">
-          <div>
-            <span class="section-kicker">OBJECTIFS & PLANS</span>
-            <h2>Ta trajectoire sportive</h2>
-            <p>Un objectif change. Ton coach reste.</p>
-          </div>
-          <button class="round-add" id="newObjectiveButton" type="button" aria-label="Nouvel objectif">＋</button>
-        </div>
-
-        <article class="card active-goal-feature" id="goalFeature">
-          <span class="section-kicker">EN COURS</span>
-          <h2 id="featureGoalTitle">—</h2>
-          <p id="featureGoalMeta">—</p>
-          <div class="goal-kpis">
-            <div><span>Cible</span><strong id="featureGoalTarget">—</strong></div>
-            <div><span>Phase</span><strong id="featureGoalPhase">—</strong></div>
-            <div><span>Échéance</span><strong id="featureGoalDays">—</strong></div>
-          </div>
-        </article>
-
-        <div class="section-row">
-          <div>
-            <span class="section-kicker">TOUS LES OBJECTIFS</span>
-            <h3>Historique & prochains défis</h3>
-          </div>
-        </div>
-        <div class="goal-list" id="goalList"></div>
-      </section>
-
       <section class="screen" data-screen-panel="progress">
-        <div class="screen-title">
-          <div>
-            <span class="section-kicker">PROGRESSION</span>
-            <h2>Ton profil évolue</h2>
-            <p>Données COROS + activités + ressenti.</p>
-          </div>
-        </div>
-
-        <section class="progress-kpis">
-          <article class="metric-card"><span>VO₂max</span><strong id="progressVo2">—</strong><small>actuel</small></article>
-          <article class="metric-card"><span>Seuil</span><strong id="progressThresholdPace">—</strong><small>allure</small></article>
-          <article class="metric-card"><span>FC seuil</span><strong id="progressThresholdHr">—</strong><small>bpm</small></article>
-          <article class="metric-card"><span>Feedbacks</span><strong id="feedbackCount">—</strong><small>enregistrés</small></article>
-        </section>
-
-        <article class="card zones-card">
-          <div class="card-head compact">
-            <div>
-              <span class="section-kicker">TES ZONES</span>
-              <h2>Zones FC COROS</h2>
-              <p id="zoneModel">—</p>
-            </div>
-          </div>
-          <div class="zone-list" id="heartRateZones"></div>
-        </article>
-
-        <article class="card activity-card">
-          <div class="card-head compact">
-            <div>
-              <span class="section-kicker">DERNIÈRE ACTIVITÉ</span>
-              <h2 id="latestSport">—</h2>
-              <p id="latestDate">—</p>
-            </div>
-            <span class="zone-chip zone-4" id="latestFocus">—</span>
-          </div>
-          <section class="activity-metrics" id="activityKpis"></section>
-          <div class="hr-comparison">
-            <div><span>FC moyenne</span><strong id="avgHrValue">—</strong><small id="avgHrZone">—</small></div>
-            <div><span>FC maximale</span><strong id="maxHrValue">—</strong><small id="maxHrZone">—</small></div>
-          </div>
-          <p class="coach-note" id="coachNote">—</p>
-        </article>
-
-        <article class="card feedback-card" id="feedbackCard">
-          <span class="section-kicker">TON RESSENTI</span>
-          <h2>Ajouter un feedback</h2>
-          <form id="feedbackForm">
-            <div class="range-field"><label for="rpe">Effort RPE <strong><span id="rpeValue">5</span>/10</strong></label><input name="rpe" id="rpe" type="range" min="1" max="10" value="5" /></div>
-            <div class="range-field"><label for="legs">Jambes <strong><span id="legsValue">7</span>/10</strong></label><input name="legs" id="legs" type="range" min="1" max="10" value="7" /></div>
-            <div class="range-field"><label for="cardio">Cardio <strong><span id="cardioValue">7</span>/10</strong></label><input name="cardio" id="cardio" type="range" min="1" max="10" value="7" /></div>
-            <label class="text-field" for="pain">Douleur / gêne<input name="pain" id="pain" placeholder="Aucune, ou localisation + intensité /10" value="Aucune" /></label>
-            <label class="text-field" for="couldContinue">Marge restante<input name="couldContinue" id="couldContinue" placeholder="Ex. j’aurais pu continuer 20 min" /></label>
-            <label class="text-field" for="note">Commentaire libre<textarea name="note" id="note" rows="3" placeholder="Facultatif"></textarea></label>
-            <button class="button primary full" type="submit">Enregistrer</button>
-            <p class="form-status" id="feedbackStatus" aria-live="polite"></p>
-          </form>
-        </article>
+        <div class="page-title"><h1>Progrès</h1></div>
+        <article class="card form-card"><div class="section-heading"><div><span class="eyebrow">FORME ACTUELLE</span><h2>↗ <span id="formStateLabel">En progression</span></h2></div><span class="chevron">›</span></div><p id="formStateInsight">Ta charge remonte progressivement après une période légère.</p></article>
+        <div class="section-row"><span class="section-label">INDICATEURS CLÉS</span><button class="text-link" id="toggleZonesButton" type="button">Voir tout ›</button></div>
+        <section class="metric-grid"><article class="metric-card"><span>VO₂max</span><strong id="progressVo2">—</strong><small>↗ stable</small></article><article class="metric-card"><span>FC seuil</span><strong><span id="progressThresholdHr">—</span> <em>bpm</em></strong><small>↗ COROS</small></article><article class="metric-card"><span>Allure seuil</span><strong id="progressThresholdPace">—</strong><small>référence</small></article><article class="metric-card"><span>Charge</span><strong id="progressLoad">—</strong><small>court terme</small></article></section>
+        <div class="section-row"><span class="section-label">DERNIÈRE ACTIVITÉ</span></div>
+        <article class="card activity-card" id="latestActivityCard"><button class="card-link" id="viewActivityButton" type="button" aria-label="Analyser la dernière activité"></button><div class="activity-title"><div class="sport-icon run">🏃</div><div><h2 id="latestSport">—</h2><p id="latestDate">—</p></div></div><div class="activity-kpis" id="activityKpis"></div><div class="focus-row"><span class="focus-dot"></span><strong id="latestFocus">—</strong></div><div class="activity-insight" id="coachNote">—</div><div class="text-link centered">Analyser cette activité ›</div></article>
+        <article class="card zones-card hidden" id="zonesCard"><div class="section-heading"><div><span class="eyebrow">TES ZONES</span><h2>Zones FC COROS</h2></div></div><p id="zoneModel">—</p><div class="zone-list" id="heartRateZones"></div></article>
       </section>
-
-      <section class="screen" data-screen-panel="coach">
-        <div class="screen-title">
-          <div>
-            <span class="section-kicker">COACH</span>
-            <h2>Ton contexte voyage avec toi</h2>
-            <p>Le coach garde ton profil même quand l’objectif change.</p>
-          </div>
-        </div>
-
-        <article class="card coach-context">
-          <div class="context-row"><span>Objectif actif</span><strong id="coachGoal">—</strong></div>
-          <div class="context-row"><span>Phase</span><strong id="coachPhase">—</strong></div>
-          <div class="context-row"><span>EF COROS</span><strong>134–151 bpm</strong></div>
-          <div class="context-row"><span>Approche</span><strong id="coachApproach">—</strong></div>
-        </article>
-
-        <div class="prompt-grid">
-          <button type="button" data-prompt="Que dois-je faire aujourd'hui en tenant compte de mon objectif actif, de ma récupération et de mes zones COROS ?">Séance du jour</button>
-          <button type="button" data-prompt="Adapte mon plan actif à partir de mes activités, ma récupération et mes feedbacks récents.">Adapter mon plan</button>
-          <button type="button" data-prompt="Fais un bilan de ma progression sur mon objectif actif et explique ce qu'il faut travailler ensuite.">Bilan progression</button>
-          <button type="button" data-prompt="Aide-moi à préparer un nouvel objectif sportif sans perdre l'historique de mon entraînement actuel.">Nouvel objectif</button>
-        </div>
-
-        <article class="card chat-card">
-          <form id="coachForm" class="coach-form">
-            <label for="coachInput">Message au coach</label>
-            <textarea id="coachInput" rows="4" placeholder="Ex. Je veux préparer un semi en mars après mon 20 km."></textarea>
-            <button class="button primary full" type="submit">Demander au coach</button>
-          </form>
-          <div id="coachReply" class="coach-reply" aria-live="polite">Le coach utilise ton profil permanent, ton objectif actif, tes zones FC, tes métriques, tes activités et tes feedbacks.</div>
-        </article>
+      <section class="screen coach-screen" data-screen-panel="coach">
+        <div class="page-title coach-page-title"><h1>✦ Coach IA</h1></div><div class="section-label">CONTEXTE ACTUEL</div>
+        <article class="card coach-context-card"><div class="context-item"><span>🏆</span><div><small>Objectif actif</small><strong id="coachGoal">—</strong></div></div><div class="context-item"><span>↗</span><div><small>Phase actuelle</small><strong id="coachPhase">—</strong></div></div><div class="context-item"><span>◷</span><div><small>Récupération</small><strong id="coachRecovery">—</strong></div></div><div class="context-item"><span>◉</span><div><small>Dernière activité</small><strong id="coachLatest">—</strong></div></div></article>
+        <div class="section-label">QUE VEUX-TU FAIRE ?</div>
+        <div class="quick-actions"><button data-prompt="Que dois-je faire aujourd'hui en tenant compte de mon objectif actif, de ma récupération et de mes zones COROS ?"><span>☔</span><div><strong>Que faire aujourd’hui ?</strong><small>Obtenir ma recommandation</small></div><b>›</b></button><button data-prompt="Adapte mon plan actif à partir de mes activités, ma récupération et mes feedbacks récents."><span>♨</span><div><strong>Adapter mon plan</strong><small>Ajuster une séance ou une semaine</small></div><b>›</b></button><button data-prompt="Analyse ma dernière activité et explique ce qu'elle change pour ma prochaine séance."><span>⌕</span><div><strong>Analyser une activité</strong><small>Comprendre mes données</small></div><b>›</b></button><button data-prompt="Aide-moi à préparer un nouvel objectif sportif sans perdre l'historique de mon entraînement actuel."><span>◉</span><div><strong>Préparer un objectif</strong><small>Définir une nouvelle course</small></div><b>›</b></button></div>
+        <div class="section-label">DISCUSSION</div><div class="chat-thread" id="chatThread"><div class="bubble coach-bubble"><span class="bubble-avatar">✦</span><div>Bonjour ! Comment puis-je t’aider aujourd’hui ?</div></div></div>
+        <form class="composer" id="coachForm"><textarea id="coachInput" rows="1" placeholder="Écris ton message…"></textarea><button type="submit" aria-label="Envoyer">➤</button></form>
       </section>
     </main>
   </div>
-
-  <nav class="bottom-nav" aria-label="Navigation principale">
-    <button class="nav-item active" type="button" data-screen="today"><span>⌂</span>Aujourd’hui</button>
-    <button class="nav-item" type="button" data-screen="plan"><span>▦</span>Plan</button>
-    <button class="nav-item" type="button" data-screen="goals"><span>◎</span>Objectifs</button>
-    <button class="nav-item" type="button" data-screen="progress"><span>↗</span>Progrès</button>
-    <button class="nav-item" type="button" data-screen="coach"><span>✦</span>Coach</button>
-  </nav>
-
-  <dialog id="newObjectiveDialog" class="app-dialog">
-    <form method="dialog" class="dialog-shell" id="objectiveForm">
-      <div class="dialog-head">
-        <div><span class="section-kicker">NOUVEL OBJECTIF</span><h2>Qu’est-ce qu’on prépare ?</h2></div>
-        <button class="dialog-close" value="cancel" type="submit" aria-label="Fermer">×</button>
-      </div>
-      <label class="text-field" for="objectiveTitle">Nom de l’objectif<input id="objectiveTitle" name="title" required placeholder="Ex. Semi-marathon de Paris" /></label>
-      <label class="text-field" for="objectiveSport">Sport<select id="objectiveSport" name="sport" required><option>Course à pied</option><option>Gravel</option><option>Vélo de route</option><option>Trail</option><option>Forme générale</option><option>Autre</option></select></label>
-      <label class="text-field" for="objectiveType">Type<select id="objectiveType" name="type"><option>Course</option><option>Performance</option><option>Progression</option><option>Reprise</option><option>Maintien</option><option>Autre</option></select></label>
-      <label class="text-field" for="objectiveDate">Date cible<input id="objectiveDate" name="date" type="date" /></label>
-      <label class="text-field" for="objectiveTarget">Cible<input id="objectiveTarget" name="target" placeholder="Ex. moins de 1 h 50" /></label>
-      <label class="text-field" for="objectiveSessions">Séances par semaine<input id="objectiveSessions" name="sessionsPerWeek" type="number" min="1" max="14" placeholder="Ex. 5" /></label>
-      <button class="button primary full" type="button" id="createObjectiveButton">Créer l’objectif</button>
-      <p class="form-status" id="objectiveStatus" aria-live="polite"></p>
-    </form>
-  </dialog>
-
-  <dialog id="profileDialog" class="app-dialog">
-    <div class="dialog-shell">
-      <div class="dialog-head">
-        <div><span class="section-kicker">PROFIL ATHLÈTE</span><h2>Ton contexte permanent</h2></div>
-        <button class="dialog-close" id="closeProfileButton" type="button" aria-label="Fermer">×</button>
-      </div>
-      <div class="profile-block"><span>Approche</span><strong id="profileApproach">—</strong></div>
-      <div class="profile-block"><span>Disponibilité</span><strong id="profileAvailability">—</strong></div>
-      <div class="profile-block"><span>Sports</span><strong id="profileSports">—</strong></div>
-      <div class="profile-block"><span>Vigilance blessures</span><strong id="profileInjury">—</strong></div>
-      <div class="profile-block"><span>FC au seuil COROS</span><strong id="profileThresholdHr">—</strong></div>
-    </div>
-  </dialog>
-
+  <nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item active" type="button" data-screen="today"><span>⌂</span><small>Aujourd’hui</small></button><button class="nav-item" type="button" data-screen="plan"><span>▣</span><small>Plan</small></button><button class="nav-item" type="button" data-screen="progress"><span>▥</span><small>Progrès</small></button><button class="nav-item" type="button" data-screen="coach"><span>♙</span><small>Coach</small></button></nav>
+  <section class="detail-view" id="sessionDetail" aria-hidden="true"><header class="detail-header"><button class="back-button" data-close-detail type="button">‹</button><strong>Séance</strong><button class="more-button" type="button">•••</button></header><div class="detail-content"><div class="detail-workout-head"><div class="sport-icon run">🏃</div><div><strong id="detailSport">—</strong><h1 id="detailTitle">—</h1><p id="detailDate">—</p></div></div><article class="card compact-card"><span class="eyebrow">OBJECTIF</span><p id="detailObjective">Développer ton endurance sans ajouter de fatigue excessive.</p></article><div class="section-label">INTENSITÉ</div><article class="card intensity-card"><div><span>Fréquence cardiaque</span><strong id="detailHr">—</strong><small id="detailZone">—</small></div><div><span>RPE</span><strong id="detailRpe">—</strong><small>effort perçu</small></div><div><span>Allure</span><strong id="detailPace">—</strong><small>FC prioritaire</small></div></article><div class="section-label">DÉROULÉ</div><div class="timeline" id="sessionTimeline"></div><div class="coach-tip detail-coach-tip"><span class="coach-star">✦</span><div><strong>CONSEIL DU COACH</strong><p id="detailCoachTip">—</p></div></div><button class="button ghost full" id="detailAdaptButton" type="button">Adapter cette séance</button><button class="button primary full" id="detailDoneButton" type="button">J’ai terminé cette séance</button></div></section>
+  <section class="detail-view" id="goalDetail" aria-hidden="true"><header class="detail-header"><button class="back-button" data-close-detail type="button">‹</button><strong>Objectifs</strong><button class="more-button" id="newGoalButton" type="button">＋</button></header><div class="detail-content"><div class="section-label">OBJECTIF ACTIF</div><article class="card goal-active-card"><span class="active-pill">● ACTIF</span><h1 id="goalDetailTitle">—</h1><p id="goalDetailSport">—</p><div class="goal-info-line"><span>▣</span><strong id="goalDetailDate">—</strong></div><div class="goal-info-line"><span>◷</span><strong id="goalDetailTarget">—</strong></div><div class="objective-phase"><span id="goalDetailPhase">—</span><strong id="goalDetailProgress">—</strong></div><div class="progress-track"><span id="goalDetailProgressBar"></span></div><button class="text-link centered" id="goalViewPlanButton" type="button">Voir le plan ›</button></article><div class="section-label">AUTRES OBJECTIFS</div><div id="goalList" class="goal-list"></div><button class="button primary full" id="newObjectiveButton" type="button">＋ Nouvel objectif</button></div></section>
+  <section class="detail-view" id="activityDetail" aria-hidden="true"><header class="detail-header"><button class="back-button" data-close-detail type="button">‹</button><strong>Activité</strong><button class="more-button" type="button">•••</button></header><div class="detail-content"><div class="detail-workout-head"><div class="sport-icon run">🏃</div><div><h1 id="activityDetailSport">—</h1><p id="activityDetailDate">—</p></div></div><article class="card activity-detail-summary" id="activityDetailKpis"></article><div class="section-label">FRÉQUENCE CARDIAQUE</div><article class="card hr-detail-card"><div><span>FC moyenne</span><strong id="activityAvgHr">—</strong></div><div><span>FC max</span><strong id="activityMaxHr">—</strong></div></article><div class="section-label">ANALYSE</div><div class="coach-tip detail-coach-tip"><span class="coach-star">✦</span><div><strong>ANALYSE DU COACH</strong><p id="activityCoachAnalysis">—</p></div></div><button class="button primary full" id="activityFeedbackButton" type="button">Ajouter mon ressenti</button></div></section>
+  <dialog class="bottom-sheet" id="adaptSheet"><form method="dialog" class="sheet-content" id="adaptForm"><div class="sheet-handle"></div><div class="sheet-head"><div><span class="eyebrow">ADAPTER</span><h2>Comment te sens-tu ?</h2></div><button value="cancel" type="submit">×</button></div><div class="choice-grid"><button type="button" data-adapt-choice="Je suis fatigué">Fatigué</button><button type="button" data-adapt-choice="J'ai peu de temps">Peu de temps</button><button type="button" data-adapt-choice="J'ai les jambes lourdes">Jambes lourdes</button><button type="button" data-adapt-choice="J'ai une petite gêne">Petite gêne</button><button type="button" data-adapt-choice="Je me sens très bien">Très bien</button></div><label class="input-label">Autre<textarea id="adaptNote" rows="3" placeholder="Explique au coach…"></textarea></label><button class="button primary full" id="askAdaptationButton" type="button">Demander une adaptation</button></form></dialog>
+  <dialog class="bottom-sheet" id="profileDialog"><div class="sheet-content"><div class="sheet-handle"></div><div class="sheet-head"><div><span class="eyebrow">PROFIL ATHLÈTE</span><h2>Mon profil</h2><p class="profile-subtitle">Ton contexte permanent</p></div><button id="closeProfileButton" type="button">×</button></div><div class="profile-list"><div><span>Approche</span><strong id="profileApproach">—</strong></div><div><span>Disponibilité</span><strong id="profileAvailability">—</strong></div><div><span>Sports</span><strong id="profileSports">—</strong></div><div><span>Vigilance</span><strong id="profileInjury">—</strong></div><div><span>FC seuil COROS</span><strong id="profileThresholdHr">—</strong></div></div></div></dialog>
+  <dialog class="bottom-sheet" id="objectiveDialog"><form class="sheet-content" id="objectiveForm"><div class="sheet-handle"></div><div class="sheet-head"><div><span class="eyebrow">NOUVEL OBJECTIF</span><h2>Qu’est-ce qu’on prépare ?</h2></div><button id="closeObjectiveButton" type="button">×</button></div><label class="input-label">Nom<input id="objectiveTitle" name="title" required placeholder="Ex. Semi-marathon de Paris" /></label><label class="input-label">Sport<select id="objectiveSport" name="sport"><option>Course à pied</option><option>Gravel</option><option>Vélo de route</option><option>Trail</option><option>Forme générale</option><option>Autre</option></select></label><label class="input-label">Date cible<input id="objectiveDate" name="date" type="date" /></label><label class="input-label">Cible<input id="objectiveTarget" name="target" placeholder="Ex. Moins de 2 heures" /></label><label class="input-label">Séances / semaine<input id="objectiveSessions" name="sessionsPerWeek" type="number" min="1" max="14" value="5" /></label><input type="hidden" name="type" value="Course" /><button class="button primary full" id="createObjectiveButton" type="button">Créer mon objectif</button><p class="form-status" id="objectiveStatus"></p></form></dialog>
   <script src="/app.js" defer></script>
 </body>
 </html>
