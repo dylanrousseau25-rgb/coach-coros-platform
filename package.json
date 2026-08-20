@@ -1,12 +1,23 @@
 {
   "name": "coach-coros-platform",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node --watch server.mjs",
     "start": "node server.mjs",
-    "test": "node test.mjs"
+    "test": "node test.mjs",
+    "dev:v5": "node --watch src/v5-server.mjs",
+    "start:v5": "node src/v5-server.mjs",
+    "migrate:v5": "node scripts/migrate.mjs",
+    "create-admin:v5": "node scripts/create-admin.mjs",
+    "create-invite:v5": "node scripts/create-invite.mjs",
+    "migrate-v4:v5": "node scripts/migrate-v4-state.mjs"
   },
-  "engines": {"node": ">=20"}
+  "dependencies": {
+    "mysql2": "^3.14.4"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
 }
