@@ -1,0 +1,222 @@
+CREATE TABLE IF NOT EXISTS athlete_profiles (
+  user_id BIGINT UNSIGNED NOT NULL,
+  approach VARCHAR(255) NULL,
+  availability VARCHAR(255) NULL,
+  injury_notes TEXT NULL,
+  sports_json JSON NULL,
+  weekly_constraints_json JSON NULL,
+  heart_rate_zones_json JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  CONSTRAINT athlete_profiles_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS provider_connections (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  provider ENUM('coros','garmin') NOT NULL,
+  provider_user_id VARCHAR(255) NULL,
+  access_token_encrypted TEXT NULL,
+  refresh_token_encrypted TEXT NULL,
+  token_expires_at DATETIME NULL,
+  scope TEXT NULL,
+  status ENUM('connected','expired','revoked','error','pending') NOT NULL DEFAULT 'pending',
+  last_sync_at DATETIME NULL,
+  last_error TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY provider_connections_user_provider_unique (user_id, provider),
+  CONSTRAINT provider_connections_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS daily_metrics (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  provider VARCHAR(32) NOT NULL,
+  metric_date DATE NOT NULL,
+  recovery_score SMALLINT UNSIGNED NULL,
+  sleep_score SMALLINT UNSIGNED NULL,
+  sleep_minutes INT UNSIGNED NULL,
+  sleep_hrv DECIMAL(8,2) NULL,
+  resting_hr SMALLINT UNSIGNED NULL,
+  short_term_load DECIMAL(10,2) NULL,
+  long_term_load DECIMAL(10,2) NULL,
+  load_ratio DECIMAL(8,3) NULL,
+  vo2max DECIMAL(6,2) NULL,
+  threshold_hr SMALLINT UNSIGNED NULL,
+  threshold_pace_text VARCHAR(64) NULL,
+  raw_data_json JSON NULL,
+  synced_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY daily_metrics_user_provider_date_unique (user_id, provider, metric_date),
+  KEY daily_metrics_user_date_idx (user_id, metric_date),
+  CONSTRAINT daily_metrics_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS activities (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  provider VARCHAR(32) NOT NULL,
+  provider_activity_id VARCHAR(255) NOT NULL,
+  activity_date DATE NOT NULL,
+  started_at DATETIME NULL,
+  sport VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NULL,
+  duration_seconds INT UNSIGNED NULL,
+  duration_text VARCHAR(64) NULL,
+  distance_m DECIMAL(12,2) NULL,
+  distance_text VARCHAR(64) NULL,
+  pace_text VARCHAR(64) NULL,
+  elevation_m DECIMAL(10,2) NULL,
+  avg_hr SMALLINT UNSIGNED NULL,
+  max_hr SMALLINT UNSIGNED NULL,
+  cadence DECIMAL(8,2) NULL,
+  training_load DECIMAL(10,2) NULL,
+  training_focus VARCHAR(100) NULL,
+  coach_note TEXT NULL,
+  raw_summary_json JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY activities_provider_activity_unique (user_id, provider, provider_activity_id),
+  KEY activities_user_date_idx (user_id, activity_date),
+  CONSTRAINT activities_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS objectives (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  legacy_id VARCHAR(255) NULL,
+  title VARCHAR(255) NOT NULL,
+  sport VARCHAR(100) NOT NULL,
+  objective_type VARCHAR(100) NULL,
+  event_name VARCHAR(255) NULL,
+  event_date DATE NULL,
+  target VARCHAR(255) NULL,
+  target_pace VARCHAR(100) NULL,
+  status ENUM('planned','active','completed','cancelled') NOT NULL DEFAULT 'planned',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY objectives_user_legacy_unique (user_id, legacy_id),
+  KEY objectives_user_status_idx (user_id, status),
+  CONSTRAINT objectives_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS training_plans (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  objective_id BIGINT UNSIGNED NULL,
+  legacy_id VARCHAR(255) NULL,
+  name VARCHAR(255) NOT NULL,
+  status ENUM('draft','active','paused','completed','cancelled') NOT NULL DEFAULT 'draft',
+  phase VARCHAR(255) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  current_week INT UNSIGNED NULL,
+  total_weeks INT UNSIGNED NULL,
+  principle TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY training_plans_user_legacy_unique (user_id, legacy_id),
+  KEY training_plans_user_status_idx (user_id, status),
+  CONSTRAINT training_plans_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT training_plans_objective_fk FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS plan_sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  legacy_id VARCHAR(255) NULL,
+  scheduled_date DATE NOT NULL,
+  day_label VARCHAR(16) NULL,
+  sport VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  duration_text VARCHAR(100) NULL,
+  details TEXT NULL,
+  status ENUM('planned','today','completed','skipped','replaced') NOT NULL DEFAULT 'planned',
+  zone SMALLINT UNSIGNED NULL,
+  zone_label VARCHAR(100) NULL,
+  hr_target VARCHAR(100) NULL,
+  rpe_target VARCHAR(100) NULL,
+  pace_target VARCHAR(100) NULL,
+  source ENUM('coach','imported','manual','legacy') NOT NULL DEFAULT 'coach',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY plan_sessions_user_legacy_unique (user_id, legacy_id),
+  KEY plan_sessions_user_date_idx (user_id, scheduled_date),
+  CONSTRAINT plan_sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT plan_sessions_plan_fk FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS activity_feedback (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  activity_id BIGINT UNSIGNED NULL,
+  rpe VARCHAR(32) NULL,
+  legs VARCHAR(64) NULL,
+  cardio VARCHAR(64) NULL,
+  pain VARCHAR(255) NULL,
+  could_continue VARCHAR(64) NULL,
+  note TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY activity_feedback_user_idx (user_id, created_at),
+  CONSTRAINT activity_feedback_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT activity_feedback_activity_fk FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS coach_threads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY coach_threads_user_idx (user_id, updated_at),
+  CONSTRAINT coach_threads_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS coach_messages (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  thread_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  role ENUM('user','assistant','system') NOT NULL,
+  content TEXT NOT NULL,
+  model VARCHAR(100) NULL,
+  input_tokens INT UNSIGNED NULL,
+  output_tokens INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY coach_messages_thread_idx (thread_id, created_at),
+  KEY coach_messages_user_idx (user_id, created_at),
+  CONSTRAINT coach_messages_thread_fk FOREIGN KEY (thread_id) REFERENCES coach_threads(id) ON DELETE CASCADE,
+  CONSTRAINT coach_messages_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sync_jobs (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  provider_connection_id BIGINT UNSIGNED NULL,
+  job_type VARCHAR(64) NOT NULL,
+  status ENUM('queued','running','completed','failed') NOT NULL DEFAULT 'queued',
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  scheduled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME NULL,
+  finished_at DATETIME NULL,
+  last_error TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY sync_jobs_status_schedule_idx (status, scheduled_at),
+  KEY sync_jobs_user_idx (user_id, created_at),
+  CONSTRAINT sync_jobs_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT sync_jobs_connection_fk FOREIGN KEY (provider_connection_id) REFERENCES provider_connections(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

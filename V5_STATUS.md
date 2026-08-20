@@ -2,34 +2,51 @@
 
 Branche: `v5-multi-user`
 
-## Phase actuelle
+## Terminé
 
 ### V5-A — socle MySQL
 - pool MySQL/MariaDB via `mysql2`
 - migrations versionnées
-- tables `users`, `sessions`, `invite_codes`
-- scripts de migration et bootstrap
+- scripts de migration
 
 ### V5-B — authentification privée
 - inscription sur invitation
 - login / logout / `me`
-- mots de passe avec `crypto.scrypt`
-- session opaque stockée sous forme de hash
+- mots de passe `crypto.scrypt`
+- session opaque hashée en base
 - cookie `HttpOnly`, `SameSite=Lax`, `Secure` en production
-- expiration configurable
+- bootstrap admin + codes d'invitation
 
-## Lancer localement
+### V5-C — données sportives persistantes
+- `athlete_profiles`
+- `provider_connections`
+- `daily_metrics`
+- `activities`
+- `objectives`
+- `training_plans`
+- `plan_sessions`
+- `activity_feedback`
+- `coach_threads` / `coach_messages`
+- `sync_jobs`
+- script idempotent `data/state.json` → compte V5
+
+### V5-D — premier dashboard isolé
+- `GET /api/v5/dashboard`
+- toutes les requêtes portent le `user_id` authentifié
+- état, objectifs, plan et activités chargés uniquement pour le compte courant
+
+## Lancer le socle
 
 1. Créer une base MySQL/MariaDB.
-2. Copier `.env.example` vers un fichier d'environnement géré hors Git.
-3. Renseigner `DATABASE_*` et `SESSION_SECRET`.
-4. Installer: `npm install`
-5. Migrer: `npm run migrate:v5`
-6. Créer le premier admin: `npm run create-admin:v5`
-7. Créer une invitation: `npm run create-invite:v5 -- 1 14`
-8. Démarrer: `npm run start:v5`
-
-Le serveur V5 écoute par défaut sur le port 8788.
+2. Renseigner les variables `DATABASE_*` et `SESSION_SECRET`.
+3. `npm install`
+4. `npm run migrate:v5`
+5. Renseigner `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
+6. `npm run create-admin:v5`
+7. Renseigner `MIGRATION_USER_EMAIL` avec l'email admin.
+8. `npm run migrate-v4:v5`
+9. `npm run create-invite:v5 -- 1 14`
+10. `npm run start:v5`
 
 ## Routes disponibles
 
@@ -38,10 +55,11 @@ Le serveur V5 écoute par défaut sur le port 8788.
 - `POST /auth/login`
 - `POST /auth/logout`
 - `GET /auth/me`
-- `GET /api/v5/bootstrap` (authentifié)
+- `GET /api/v5/bootstrap`
+- `GET /api/v5/dashboard`
 
 ## Important
 
-Le serveur V4 reste le `npm start` par défaut tant que les données sportives n'ont pas été migrées. La V5 n'est pas encore la production.
+Le serveur V4 reste le `npm start` par défaut. Aucune production n'a été remplacée.
 
-Prochaine phase: V5-C — schéma sportif + migration des données V4 vers le compte admin.
+Prochaine phase: V5-E/F — providers + OAuth COROS, chiffrement des tokens et synchronisation.

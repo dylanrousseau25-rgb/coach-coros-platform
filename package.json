@@ -11,7 +11,8 @@
     "start:v5": "node src/v5-server.mjs",
     "migrate:v5": "node scripts/migrate.mjs",
     "create-admin:v5": "node scripts/create-admin.mjs",
-    "create-invite:v5": "node scripts/create-invite.mjs"
+    "create-invite:v5": "node scripts/create-invite.mjs",
+    "migrate-v4:v5": "node scripts/migrate-v4-state.mjs"
   },
   "dependencies": {
     "mysql2": "^3.14.4"
