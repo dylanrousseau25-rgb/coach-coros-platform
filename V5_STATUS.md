@@ -62,4 +62,11 @@ Branche: `v5-multi-user`
 
 Le serveur V4 reste le `npm start` par défaut. Aucune production n'a été remplacée.
 
-Prochaine phase: V5-E/F — providers + OAuth COROS, chiffrement des tokens et synchronisation.
+### Préparation V5-E/F
+- tokens provider chiffrés en AES-256-GCM
+- repository générique COROS/Garmin
+- stockage / révocation / état provider
+- startup `v5-start.js` compatible o2switch Passenger
+- procédure de staging o2switch documentée
+
+Prochain verrou externe: obtenir les credentials développeur COROS et fixer l'URL HTTPS de staging pour le callback OAuth.

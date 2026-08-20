@@ -61,6 +61,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(cfg.port, () => {
-  console.log(`Coach V5 → ${cfg.appUrl} (port ${cfg.port})`);
+const passenger = typeof globalThis.PhusionPassenger !== 'undefined';
+if (passenger) globalThis.PhusionPassenger.configure({ autoInstall: false });
+const listenTarget = passenger ? 'passenger' : cfg.port;
+
+server.listen(listenTarget, () => {
+  console.log(`Coach V5 → ${cfg.appUrl} (${passenger ? 'Passenger' : `port ${cfg.port}`})`);
 });
