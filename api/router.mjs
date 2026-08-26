@@ -40,8 +40,7 @@ function activeContext(state) {
     ? state.plans.find(p => p.id === activeObjective.planId) || null
     : state.plans.find(p => p.status === 'active') || null;
   const todayIso = localDateIso();
-  const todaySession = activePlan?.sessions?.find(s => s.date === todayIso)
-    || activePlan?.sessions?.find(s => s.status === 'today') || null;
+  const todaySession = activePlan?.sessions?.find(s => s.date === todayIso) || null;
   const latestActivity = [...(state.activities || [])].sort((a,b) => b.date.localeCompare(a.date))[0] || null;
   return { activeObjective, activePlan, todaySession, latestActivity, todayIso };
 }
