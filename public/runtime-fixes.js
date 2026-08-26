@@ -183,3 +183,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refreshCompletedUi();
 });
 setTimeout(refreshCompletedUi, 250);
+
+const freshnessScript = document.createElement('script');
+freshnessScript.src = '/freshness-guard.js';
+freshnessScript.async = false;
+document.head.appendChild(freshnessScript);
