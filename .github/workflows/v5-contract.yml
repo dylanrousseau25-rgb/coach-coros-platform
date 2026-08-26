@@ -1,0 +1,26 @@
+name: V5 contract checks
+
+on:
+  push:
+    branches: [v5-multi-user]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax checks
+        run: |
+          node --check src/v5-server.mjs
+          node --check src/api/routes.mjs
+          node --check src/dashboard/repository.mjs
+          node --check public/v5-app.js
+      - name: V5 contract tests
+        run: node test-v5-contract.mjs
