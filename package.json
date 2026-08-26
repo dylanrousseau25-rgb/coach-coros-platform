@@ -7,6 +7,7 @@
     "dev": "node --watch server.mjs",
     "start": "node server.mjs",
     "test": "node test.mjs",
+    "test:v5": "node test-v5-contract.mjs",
     "dev:v5": "node --watch src/v5-server.mjs",
     "start:v5": "node src/v5-server.mjs",
     "migrate:v5": "node scripts/migrate.mjs",
