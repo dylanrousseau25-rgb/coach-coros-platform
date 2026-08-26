@@ -1,4 +1,5 @@
 const runtimeFeedbackState = { activityId: null, sessionId: null };
+let pendingAdaptation = null;
 
 function ensureFeedbackDialog() {
   if (document.querySelector('#feedbackDialog')) return document.querySelector('#feedbackDialog');
@@ -39,6 +40,39 @@ function ensureFeedbackDialog() {
   document.body.appendChild(dialog);
   dialog.querySelector('#closeFeedbackButton').addEventListener('click', () => dialog.close());
   dialog.querySelector('#feedbackForm').addEventListener('submit', submitFeedback);
+  return dialog;
+}
+
+function ensureAdaptationDialog() {
+  if (document.querySelector('#adaptationProposalDialog')) return document.querySelector('#adaptationProposalDialog');
+  const dialog = document.createElement('dialog');
+  dialog.className = 'bottom-sheet';
+  dialog.id = 'adaptationProposalDialog';
+  dialog.innerHTML = `
+    <div class="sheet-content">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <div><span class="eyebrow">PROPOSITION DU COACH</span><h2 id="adaptProposalTitle">Séance adaptée</h2></div>
+        <button id="closeAdaptProposal" type="button">×</button>
+      </div>
+      <div class="adapt-comparison">
+        <article class="adapt-block original"><small>ORIGINAL</small><strong id="adaptOriginalTitle">—</strong><span id="adaptOriginalMeta">—</span></article>
+        <div class="adapt-arrow">↓</div>
+        <article class="adapt-block proposed"><small>PROPOSITION</small><strong id="adaptNewTitle">—</strong><span id="adaptNewMeta">—</span><p id="adaptReason">—</p></article>
+      </div>
+      <div class="split-actions">
+        <button class="button ghost" id="keepOriginalButton" type="button">Garder l’original</button>
+        <button class="button primary" id="applyAdaptationButton" type="button">Appliquer</button>
+      </div>
+      <p class="form-status" id="adaptProposalStatus"></p>
+    </div>`;
+  document.body.appendChild(dialog);
+  dialog.querySelector('#closeAdaptProposal').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#keepOriginalButton').addEventListener('click', () => {
+    pendingAdaptation = null;
+    dialog.close();
+  });
+  dialog.querySelector('#applyAdaptationButton').addEventListener('click', applyPendingAdaptation);
   return dialog;
 }
 
@@ -144,12 +178,60 @@ async function refreshCompletedUi() {
       detailButton.disabled = done;
       detailButton.textContent = done ? '✓ Séance terminée' : 'J’ai terminé cette séance';
     }
-    if (done) {
-      const adapt = document.querySelector('#adaptBtn');
-      if (adapt) adapt.disabled = true;
-    }
+    const adapt = document.querySelector('#adaptBtn');
+    if (adapt) adapt.disabled = !session || done;
   } catch (error) {
     console.error(error);
+  }
+}
+
+function showAdaptationProposal(proposal) {
+  pendingAdaptation = proposal;
+  const dialog = ensureAdaptationDialog();
+  dialog.querySelector('#adaptOriginalTitle').textContent = proposal.original.title;
+  dialog.querySelector('#adaptOriginalMeta').textContent = `${proposal.original.duration} · ${proposal.original.hrTarget || 'FC libre'}`;
+  dialog.querySelector('#adaptNewTitle').textContent = proposal.proposed.title;
+  dialog.querySelector('#adaptNewMeta').textContent = `${proposal.proposed.duration} · ${proposal.proposed.hrTarget || 'FC libre'} · RPE ${proposal.proposed.rpeTarget || '—'}`;
+  dialog.querySelector('#adaptReason').textContent = proposal.reason;
+  dialog.querySelector('#adaptProposalStatus').textContent = '';
+  dialog.showModal();
+}
+
+async function requestAdaptationProposal(reason, note = '') {
+  const data = await getDashboardSnapshot();
+  const session = (data.activePlan?.sessions || []).find(item => item.date === data.meta?.today);
+  if (!session) throw new Error('Aucune séance à adapter aujourd’hui.');
+  const response = await fetch(`/api/sessions/${encodeURIComponent(session.id)}/adapt`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ reason, note })
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || 'Impossible de proposer une adaptation');
+  showAdaptationProposal(body.proposal);
+}
+
+async function applyPendingAdaptation() {
+  if (!pendingAdaptation) return;
+  const dialog = ensureAdaptationDialog();
+  const status = dialog.querySelector('#adaptProposalStatus');
+  status.textContent = 'Application…';
+  try {
+    const response = await fetch(`/api/sessions/${encodeURIComponent(pendingAdaptation.sessionId)}/adapt/apply`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ proposalId: pendingAdaptation.id })
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'Impossible d’appliquer l’adaptation');
+    status.textContent = 'Séance adaptée ✓';
+    pendingAdaptation = null;
+    setTimeout(() => dialog.close(), 350);
+    if (typeof safeReload === 'function') await safeReload();
+    await refreshCompletedUi();
+  } catch (error) {
+    console.error(error);
+    status.textContent = error.message || 'Erreur';
   }
 }
 
@@ -172,6 +254,22 @@ if (feedbackButton) feedbackButton.addEventListener('click', event => {
   event.preventDefault();
   event.stopImmediatePropagation();
   openLatestActivityFeedback();
+}, { capture: true });
+
+const adaptationButton = document.querySelector('#askAdaptationButton');
+if (adaptationButton) adaptationButton.addEventListener('click', async event => {
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const reasonButton = document.querySelector('[data-adapt-choice].selected');
+  const reason = reasonButton?.dataset.adaptChoice || 'Je souhaite adapter la séance';
+  const note = document.querySelector('#adaptNote')?.value?.trim() || '';
+  document.querySelector('#adaptSheet')?.close();
+  try {
+    await requestAdaptationProposal(reason, note);
+  } catch (error) {
+    console.error(error);
+    alert(error.message || 'Impossible de proposer une adaptation.');
+  }
 }, { capture: true });
 
 document.addEventListener('click', event => {
