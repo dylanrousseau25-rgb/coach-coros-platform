@@ -35,7 +35,11 @@ async function requireUser(req, res) {
 }
 
 async function serveStatic(res, pathname) {
-  const requested = pathname === '/' ? '/index.html' : pathname;
+  const requested = pathname === '/'
+    ? '/index.html'
+    : pathname === '/app.js'
+      ? '/v5-app.js'
+      : pathname;
   const normalized = path.posix.normalize(requested).replace(/^\/+/, '');
   if (normalized.startsWith('..')) return false;
   let filePath = path.resolve(publicDir, normalized);
