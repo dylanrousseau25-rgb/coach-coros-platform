@@ -10,8 +10,10 @@ import { handleV5ApiRoute } from './api/routes.mjs';
 import { json, notFound } from './http.mjs';
 
 const cfg = config();
+const appOrigin = new URL(cfg.appUrl).origin;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
+const rateBuckets = new Map();
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -24,6 +26,31 @@ const contentTypes = {
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json'
 };
+
+function clientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function rateAllowed(key, limit, windowMs) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  bucket.count += 1;
+  if (bucket.count > limit) return false;
+  return true;
+}
+
+function originAllowed(req) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return true;
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  return origin === appOrigin;
+}
 
 async function requireUser(req, res) {
   const user = await currentUser(req);
@@ -53,7 +80,9 @@ async function serveStatic(res, pathname) {
       'content-type': contentTypes[path.extname(filePath)] || 'application/octet-stream',
       'cache-control': /\.(?:html|js|css|webmanifest)$/.test(filePath)
         ? 'no-cache'
-        : 'public, max-age=3600'
+        : 'public, max-age=3600',
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'same-origin'
     });
     res.end(data);
     return true;
@@ -66,7 +95,17 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, cfg.appUrl);
 
+    if (!originAllowed(req)) {
+      return json(res, 403, { error: 'Origine de requête refusée.' });
+    }
+
     if (url.pathname.startsWith('/auth/')) {
+      if (req.method === 'POST' && ['/auth/login', '/auth/register'].includes(url.pathname)) {
+        const key = `auth:${clientIp(req)}`;
+        if (!rateAllowed(key, 20, 15 * 60_000)) {
+          return json(res, 429, { error: 'Trop de tentatives. Réessaie plus tard.' });
+        }
+      }
       const handled = await handleAuthRoute(req, res, url.pathname);
       if (handled !== false) return;
     }
@@ -84,6 +123,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/v5/')) {
       const user = await requireUser(req, res);
       if (!user) return;
+      if (req.method === 'POST' && url.pathname === '/api/v5/coach') {
+        if (!rateAllowed(`coach:${user.id}`, 30, 60_000)) {
+          return json(res, 429, { error: 'Trop de messages envoyés au coach. Réessaie dans une minute.' });
+        }
+      }
       if (req.method === 'GET' && url.pathname === '/api/v5/bootstrap') {
         return json(res, 200, {
           user,
