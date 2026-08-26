@@ -1,12 +1,29 @@
 import http from 'node:http';
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.mjs';
 import { db } from './db/pool.mjs';
 import { handleAuthRoute } from './auth/routes.mjs';
 import { currentUser } from './auth/session.mjs';
-import { dashboardForUser } from './dashboard/repository.mjs';
+import { handleV5ApiRoute } from './api/routes.mjs';
 import { json, notFound } from './http.mjs';
 
 const cfg = config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.resolve(__dirname, '..', 'public');
+
+const contentTypes = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json'
+};
 
 async function requireUser(req, res) {
   const user = await currentUser(req);
@@ -15,6 +32,30 @@ async function requireUser(req, res) {
     return null;
   }
   return user;
+}
+
+async function serveStatic(res, pathname) {
+  const requested = pathname === '/' ? '/index.html' : pathname;
+  const normalized = path.posix.normalize(requested).replace(/^\/+/, '');
+  if (normalized.startsWith('..')) return false;
+  let filePath = path.resolve(publicDir, normalized);
+  if (!filePath.startsWith(`${publicDir}${path.sep}`) && filePath !== publicDir) return false;
+
+  try {
+    const info = await stat(filePath);
+    if (info.isDirectory()) filePath = path.join(filePath, 'index.html');
+    const data = await readFile(filePath);
+    res.writeHead(200, {
+      'content-type': contentTypes[path.extname(filePath)] || 'application/octet-stream',
+      'cache-control': /\.(?:html|js|css|webmanifest)$/.test(filePath)
+        ? 'no-cache'
+        : 'public, max-age=3600'
+    });
+    res.end(data);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -36,20 +77,23 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/v5/bootstrap') {
+    if (url.pathname.startsWith('/api/v5/')) {
       const user = await requireUser(req, res);
       if (!user) return;
-      return json(res, 200, {
-        user,
-        phase: 'V5-C/D',
-        message: 'Auth, persistance sportive et dashboard isolé par utilisateur opérationnels.'
-      });
+      if (req.method === 'GET' && url.pathname === '/api/v5/bootstrap') {
+        return json(res, 200, {
+          user,
+          phase: 'V5-RC1',
+          message: 'Authentification, dashboard et mutations multi-utilisateur opérationnels.'
+        });
+      }
+      const handled = await handleV5ApiRoute(req, res, url, user);
+      if (handled !== false) return;
+      return notFound(res);
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/v5/dashboard') {
-      const user = await requireUser(req, res);
-      if (!user) return;
-      return json(res, 200, await dashboardForUser(user));
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      if (await serveStatic(res, url.pathname)) return;
     }
 
     return notFound(res);
