@@ -13,6 +13,11 @@ function runtimeFormatToday(value) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
 function setNoTodaySession() {
   const values = {
     '#todayTitle': 'Aucune séance planifiée',
@@ -24,10 +29,7 @@ function setNoTodaySession() {
     '#todayRpe': '—',
     '#todayDetails': 'Aucune séance n’est datée pour aujourd’hui. Le coach ne recycle plus une ancienne séance.'
   };
-  for (const [selector, value] of Object.entries(values)) {
-    const element = document.querySelector(selector);
-    if (element) element.textContent = value;
-  }
+  for (const [selector, value] of Object.entries(values)) setText(selector, value);
   for (const selector of ['#viewSessionButton', '#adaptBtn', '#doneBtn']) {
     const button = document.querySelector(selector);
     if (button) button.disabled = true;
@@ -40,16 +42,44 @@ function maskDemoMetrics() {
     '#sleepDuration': '—',
     '#shortLoad': '—',
     '#recoveryLabel': 'COROS non synchronisé',
-    '#readinessInsight': 'Les métriques COROS affichées dans le prototype ne sont pas des données du jour. Elles restent masquées tant que la synchronisation réelle n’est pas active.',
+    '#readinessInsight': 'Les métriques COROS du prototype ne sont pas des données du jour. Elles restent masquées tant que la synchronisation réelle n’est pas active.',
     '#formStateLabel': 'COROS non synchronisé',
-    '#formStateInsight': 'La forme et la charge du jour ne sont pas disponibles sans synchronisation COROS réelle.',
+    '#formStateInsight': 'La forme, la charge et les indicateurs physiologiques ne sont pas disponibles sans synchronisation COROS réelle.',
+    '#progressVo2': '—',
+    '#progressThresholdHr': '—',
+    '#progressThresholdPace': '—',
     '#progressLoad': '—',
-    '#coachRecovery': 'Non synchronisé'
+    '#coachRecovery': 'Non synchronisé',
+    '#profileThresholdHr': 'Non synchronisé',
+    '#zoneModel': 'Zones COROS non synchronisées',
+    '#latestSport': 'Activité non synchronisée',
+    '#latestDate': 'Connecte COROS pour importer tes activités',
+    '#latestFocus': '—',
+    '#coachNote': 'La dernière activité affichée dans le prototype n’est pas considérée comme une donnée actuelle tant que COROS n’est pas synchronisé.'
   };
-  for (const [selector, value] of Object.entries(values)) {
-    const element = document.querySelector(selector);
-    if (element) element.textContent = value;
+  for (const [selector, value] of Object.entries(values)) setText(selector, value);
+
+  const cards = [...document.querySelectorAll('.metric-card')];
+  for (const card of cards) {
+    const small = card.querySelector('small');
+    if (small) small.textContent = 'non synchronisé';
   }
+
+  const activityKpis = document.querySelector('#activityKpis');
+  if (activityKpis) {
+    activityKpis.innerHTML = ['Distance', 'Durée', 'Allure', 'FC moy.']
+      .map(label => `<div class="activity-kpi"><strong>—</strong><span>${label}</span></div>`)
+      .join('');
+  }
+
+  const activityButton = document.querySelector('#viewActivityButton');
+  if (activityButton) activityButton.disabled = true;
+
+  const zones = document.querySelector('#heartRateZones');
+  if (zones) zones.innerHTML = '<div class="zone-row"><span>Synchronise COROS pour charger tes zones réelles.</span></div>';
+
+  const toggleZones = document.querySelector('#toggleZonesButton');
+  if (toggleZones) toggleZones.textContent = 'Non synchronisé';
 }
 
 async function applyFreshnessGuard({ reload = false } = {}) {
