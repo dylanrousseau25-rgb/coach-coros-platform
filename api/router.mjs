@@ -45,6 +45,14 @@ function activeContext(state) {
   return { activeObjective, activePlan, todaySession, latestActivity, todayIso };
 }
 
+function findSession(state, id) {
+  for (const plan of state.plans || []) {
+    const session = (plan.sessions || []).find(item => item.id === id);
+    if (session) return { plan, session };
+  }
+  return null;
+}
+
 function dashboard(state) {
   const ctx = activeContext(state);
   return {
@@ -80,15 +88,23 @@ function objectivePlanTemplate(objectiveId, title, date) {
 }
 
 async function coachReply(state, userMessage) {
-  const { activeObjective, activePlan, todaySession, latestActivity } = activeContext(state);
+  const { activeObjective, activePlan, todaySession, latestActivity, todayIso } = activeContext(state);
   if (!process.env.OPENAI_API_KEY) {
     return `Mode démo : j'ai reçu « ${userMessage} ». Ton objectif actif est « ${activeObjective?.title || 'aucun objectif actif'} ». Ajoute OPENAI_API_KEY dans Vercel pour activer le coach IA.`;
   }
 
+  const corosLive = (process.env.COROS_MODE || 'demo') !== 'demo';
   const context = {
     athlete: state.athlete,
     heartRateZones: state.heartRateZones,
-    metrics: state.metrics,
+    metrics: corosLive ? state.metrics : null,
+    dataFreshness: {
+      today: todayIso,
+      corosLive,
+      note: corosLive
+        ? 'Les métriques COROS peuvent être utilisées comme état du jour.'
+        : "COROS n'est pas synchronisé : ne pas utiliser les anciennes métriques de démonstration comme état actuel."
+    },
     activeObjective,
     activePlan,
     todaySession,
@@ -105,7 +121,7 @@ async function coachReply(state, userMessage) {
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || 'gpt-5.6-terra',
       reasoning: { effort: 'low' },
-      input: `Tu es Coach COROS, coach d'endurance prudent dans une application multi-objectifs.\nContexte JSON:\n${JSON.stringify(context)}\nMessage de l'athlète: ${userMessage}\nRéponds en français, de façon concise et pratique. La fréquence cardiaque COROS est prioritaire pour les séances faciles. Prévention des blessures avant la performance.`
+      input: `Tu es Coach COROS, coach d'endurance prudent dans une application multi-objectifs.\nContexte JSON:\n${JSON.stringify(context)}\nMessage de l'athlète: ${userMessage}\nRéponds en français, de façon concise et pratique. La fréquence cardiaque COROS est prioritaire pour les séances faciles. Prévention des blessures avant la performance. Si dataFreshness.corosLive est faux, ne présente jamais récupération, sommeil ou charge de démonstration comme des données actuelles : indique que l'état physiologique du jour n'est pas synchronisé et appuie-toi sur les sensations fournies par l'athlète.`
     })
   });
   if (!response.ok) throw new Error(`OpenAI API ${response.status}: ${await response.text()}`);
@@ -187,14 +203,35 @@ export default {
         return json({ ok:true, objective });
       }
 
+      match = route.match(/^sessions\/([^/]+)\/complete$/);
+      if (method === 'POST' && match) {
+        const id = decodeURIComponent(match[1]);
+        const found = findSession(state, id);
+        if (!found) return json({ error: 'Séance introuvable' }, 404);
+        found.session.status = 'completed';
+        found.session.completedAt = new Date().toISOString();
+        await saveState(state);
+        return json({ ok:true, session:found.session });
+      }
+
       if (method === 'POST' && route === 'feedback') {
         const payload = await request.json();
         for (const key of ['rpe','legs','cardio','pain','couldContinue']) {
           if (payload[key] === undefined || payload[key] === '') return json({ error: `Champ manquant: ${key}` }, 400);
         }
         const { activeObjective, activePlan, latestActivity } = activeContext(state);
-        if (!latestActivity) return json({ error: 'Aucune activité à commenter' }, 400);
-        const item = { id:crypto.randomUUID(), at:new Date().toISOString(), activityId:latestActivity.id, objectiveId:activeObjective?.id || null, planId:activePlan?.id || null, ...payload };
+        const activityId = payload.activityId || latestActivity?.id || null;
+        const sessionId = payload.sessionId || null;
+        if (!activityId && !sessionId) return json({ error: 'Aucune activité ou séance à commenter' }, 400);
+        const item = {
+          id:crypto.randomUUID(),
+          at:new Date().toISOString(),
+          activityId,
+          sessionId,
+          objectiveId:activeObjective?.id || null,
+          planId:activePlan?.id || null,
+          ...payload
+        };
         state.feedback.unshift(item);
         await saveState(state);
         return json({ ok:true, feedback:item }, 201);
