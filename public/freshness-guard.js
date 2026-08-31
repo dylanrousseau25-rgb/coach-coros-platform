@@ -58,26 +58,21 @@ function maskDemoMetrics() {
     '#coachNote': 'La dernière activité affichée dans le prototype n’est pas considérée comme une donnée actuelle tant que COROS n’est pas synchronisé.'
   };
   for (const [selector, value] of Object.entries(values)) setText(selector, value);
-
   const cards = [...document.querySelectorAll('.metric-card')];
   for (const card of cards) {
     const small = card.querySelector('small');
     if (small) small.textContent = 'non synchronisé';
   }
-
   const activityKpis = document.querySelector('#activityKpis');
   if (activityKpis) {
     activityKpis.innerHTML = ['Distance', 'Durée', 'Allure', 'FC moy.']
       .map(label => `<div class="activity-kpi"><strong>—</strong><span>${label}</span></div>`)
       .join('');
   }
-
   const activityButton = document.querySelector('#viewActivityButton');
   if (activityButton) activityButton.disabled = true;
-
   const zones = document.querySelector('#heartRateZones');
   if (zones) zones.innerHTML = '<div class="zone-row"><span>Synchronise COROS pour charger tes zones réelles.</span></div>';
-
   const toggleZones = document.querySelector('#toggleZonesButton');
   if (toggleZones) toggleZones.textContent = 'Non synchronisé';
 }
@@ -89,21 +84,14 @@ async function applyFreshnessGuard({ reload = false } = {}) {
     if (!response.ok) throw new Error(`Dashboard ${response.status}`);
     const data = await response.json();
     freshnessLoadedDay = data.meta?.today || runtimeLocalDateIso();
-
     const todayDate = document.querySelector('#todayDate');
     if (todayDate) todayDate.textContent = runtimeFormatToday(freshnessLoadedDay);
-
     if (!data.meta?.corosMode || data.meta.corosMode === 'demo') maskDemoMetrics();
-
     const sessions = data.activePlan?.sessions || [];
     const todaySession = sessions.find(session => session.date === freshnessLoadedDay) || null;
     if (!todaySession) setNoTodaySession();
-
     document.querySelectorAll('[data-session-id]').forEach(button => button.classList.remove('today'));
-    if (todaySession) {
-      document.querySelector(`[data-session-id="${CSS.escape(todaySession.id)}"]`)?.classList.add('today');
-    }
-
+    if (todaySession) document.querySelector(`[data-session-id="${CSS.escape(todaySession.id)}"]`)?.classList.add('today');
     const futureSessions = sessions
       .filter(session => session.date && session.date >= freshnessLoadedDay && session.status !== 'completed')
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -132,13 +120,9 @@ if (!document.querySelector('script[data-coros-runtime]')) {
   document.head.appendChild(corosScript);
 }
 
-if (!window.__coachPolishLoading) {
-  window.__coachPolishLoading = true;
-  fetch('https://raw.githubusercontent.com/dylanrousseau25-rgb/coach-coros-platform/b91447e69c6ad2434d13e9efdee6bab7371971eb/public/coach-polish.js', { cache: 'force-cache' })
-    .then(response => {
-      if (!response.ok) throw new Error(`Coach runtime ${response.status}`);
-      return response.text();
-    })
-    .then(code => (0, eval)(`${code}\n//# sourceURL=coach-polish.js`))
-    .catch(error => console.error('Coach polish runtime', error));
+if (!document.querySelector('script[data-coach-polish]')) {
+  const coachScript = document.createElement('script');
+  coachScript.src = '/coach-polish.js';
+  coachScript.dataset.coachPolish = 'true';
+  document.head.appendChild(coachScript);
 }
