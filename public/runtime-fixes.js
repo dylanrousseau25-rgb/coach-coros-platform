@@ -282,6 +282,166 @@ document.addEventListener('visibilitychange', () => {
 });
 setTimeout(refreshCompletedUi, 250);
 
+// Presentation layer for the long COROS activity analysis.
+let coachAnalysisRaw = '';
+let coachAnalysisFormatting = false;
+
+function coachAnalysisEscape(value) {
+  return String(value || '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+
+function coachAnalysisPlain(raw) {
+  return String(raw || '')
+    .replace(/\r/g, '')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^Bilan de (?:la )?séance\s*[—:–-]?\s*/i, '')
+    .trim();
+}
+
+function coachAnalysisLooksRaw(text) {
+  const value = String(text || '').trim();
+  return value.length > 260 || /(^|\n)\s*#{1,6}\s|(^|\n)\s*[-*]\s|\*\*/m.test(value);
+}
+
+function coachAnalysisSummary(raw) {
+  const plain = coachAnalysisPlain(raw);
+  if (!plain) return 'Analyse disponible dans le détail de l’activité.';
+  const sentences = plain.match(/[^.!?]+[.!?]+/g) || [plain];
+  let summary = sentences.slice(0, 2).join(' ').trim();
+  if (summary.length > 235) summary = `${summary.slice(0, 232).trim()}…`;
+  return summary;
+}
+
+function coachAnalysisHtml(raw) {
+  let prepared = String(raw || '').replace(/\r/g, '').trim();
+  prepared = prepared
+    .replace(/\s+(?=#{1,6}\s)/g, '\n')
+    .replace(/\s+-\s+(?=[A-ZÀ-Ÿ0-9])/g, '\n- ');
+
+  const lines = prepared.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  if (!lines.length) return '<span class="coach-analysis-paragraph">Analyse disponible avec le Coach.</span>';
+
+  return lines.map(line => {
+    const heading = line.match(/^#{1,6}\s*(.+)$/);
+    if (heading) {
+      const title = coachAnalysisPlain(heading[1]);
+      return `<span class="coach-analysis-heading">${coachAnalysisEscape(title)}</span>`;
+    }
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      const text = coachAnalysisPlain(bullet[1]);
+      return `<span class="coach-analysis-bullet"><span class="coach-analysis-dot">•</span><span>${coachAnalysisEscape(text)}</span></span>`;
+    }
+    const text = coachAnalysisPlain(line);
+    if (!text) return '';
+    return `<span class="coach-analysis-paragraph">${coachAnalysisEscape(text)}</span>`;
+  }).join('');
+}
+
+function ensureCoachAnalysisStyle() {
+  if (document.querySelector('#coachAnalysisStyle')) return;
+  const style = document.createElement('style');
+  style.id = 'coachAnalysisStyle';
+  style.textContent = `
+    #coachNote.coach-analysis-preview {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+      line-height: 1.5;
+      color: #405879;
+      max-height: 4.5em;
+    }
+    #activityCoachAnalysis.coach-analysis-formatted {
+      display: block;
+      line-height: 1.55;
+      color: #3f567a;
+    }
+    #activityCoachAnalysis .coach-analysis-heading {
+      display: block;
+      margin: 12px 0 6px;
+      color: #2f66d8;
+      font-size: .82rem;
+      font-weight: 800;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+    }
+    #activityCoachAnalysis .coach-analysis-heading:first-child { margin-top: 0; }
+    #activityCoachAnalysis .coach-analysis-paragraph {
+      display: block;
+      margin: 0 0 9px;
+    }
+    #activityCoachAnalysis .coach-analysis-bullet {
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      gap: 7px;
+      margin: 6px 0;
+      align-items: start;
+    }
+    #activityCoachAnalysis .coach-analysis-dot {
+      color: #2f6df5;
+      font-weight: 900;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function polishCoachActivityAnalysis() {
+  if (coachAnalysisFormatting) return;
+  const preview = document.querySelector('#coachNote');
+  const detail = document.querySelector('#activityCoachAnalysis');
+  if (!preview && !detail) return;
+
+  const previewText = preview?.textContent?.trim() || '';
+  const detailText = detail?.textContent?.trim() || '';
+  const candidate = [detailText, previewText]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .find(coachAnalysisLooksRaw);
+
+  if (candidate) coachAnalysisRaw = candidate;
+  if (!coachAnalysisRaw) return;
+
+  coachAnalysisFormatting = true;
+  ensureCoachAnalysisStyle();
+  if (preview) {
+    preview.textContent = coachAnalysisSummary(coachAnalysisRaw);
+    preview.classList.add('coach-analysis-preview');
+  }
+  if (detail) {
+    detail.innerHTML = coachAnalysisHtml(coachAnalysisRaw);
+    detail.classList.add('coach-analysis-formatted');
+  }
+  queueMicrotask(() => { coachAnalysisFormatting = false; });
+}
+
+function watchCoachActivityAnalysis() {
+  const targets = [document.querySelector('#coachNote'), document.querySelector('#activityCoachAnalysis')].filter(Boolean);
+  if (!targets.length) return;
+  const observer = new MutationObserver(() => {
+    if (!coachAnalysisFormatting) setTimeout(polishCoachActivityAnalysis, 0);
+  });
+  targets.forEach(target => observer.observe(target, { childList: true, subtree: true, characterData: true }));
+}
+
+document.addEventListener('click', event => {
+  if (event.target.closest('#viewActivityButton')) setTimeout(polishCoachActivityAnalysis, 20);
+});
+window.addEventListener('pageshow', () => setTimeout(polishCoachActivityAnalysis, 40));
+window.addEventListener('focus', () => setTimeout(polishCoachActivityAnalysis, 40));
+setTimeout(() => {
+  ensureCoachAnalysisStyle();
+  polishCoachActivityAnalysis();
+  watchCoachActivityAnalysis();
+}, 700);
+
 const freshnessScript = document.createElement('script');
 freshnessScript.src = '/freshness-guard.js';
 freshnessScript.async = false;
