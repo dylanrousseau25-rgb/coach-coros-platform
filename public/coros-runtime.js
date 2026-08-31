@@ -123,6 +123,7 @@ async function syncCorosNow({ silent = false } = {}) {
     if (!response.ok) throw new Error(body.error || 'Synchronisation COROS impossible');
     if (typeof safeReload === 'function') await safeReload();
     if (typeof applyFreshnessGuard === 'function') await applyFreshnessGuard();
+    polishActivityUi();
     const after = await getCorosStatus();
     renderCorosStatus(after);
     const insight = document.querySelector('#readinessInsight');
@@ -150,8 +151,103 @@ async function disconnectCoros() {
   }
 }
 
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function polishActivityUi() {
+  try {
+    const activity = typeof appData !== 'undefined' ? appData?.latestActivity : null;
+    const max = numberOrNull(activity?.maxHr);
+    const avg = numberOrNull(activity?.avgHr);
+    const maxElement = document.querySelector('#activityMaxHr');
+    const avgElement = document.querySelector('#activityAvgHr');
+    const dateElement = document.querySelector('#activityDetailDate');
+    const analysisElement = document.querySelector('#activityCoachAnalysis');
+    if (maxElement) maxElement.textContent = max === null ? '—' : `${max} bpm`;
+    if (avgElement) avgElement.textContent = avg === null ? '—' : `${avg} bpm`;
+    if (dateElement && activity?.date && typeof formatDate === 'function') {
+      dateElement.textContent = formatDate(activity.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    if (analysisElement && activity?.coachNote) analysisElement.textContent = activity.coachNote;
+
+    const threshold = document.querySelector('#progressThresholdHr');
+    const thresholdCard = threshold?.closest('.metric-card');
+    const thresholdHint = thresholdCard?.querySelector('small');
+    if (threshold && (threshold.textContent.trim() === '—' || !threshold.textContent.trim())) {
+      if (thresholdHint) thresholdHint.textContent = 'non fournie par le MCP COROS';
+    }
+  } catch (error) {
+    console.error('COROS UI polish', error);
+  }
+}
+
+function activityCoachPrompt() {
+  const activity = typeof appData !== 'undefined' ? appData?.latestActivity : null;
+  if (!activity) return 'Analyse ma dernière activité COROS et explique ce qu’elle change pour ma prochaine séance.';
+  return `Analyse précisément ma dernière activité COROS (${activity.date || 'date inconnue'}, ${activity.sport || 'activité'}, ${activity.distance || 'distance inconnue'}, ${activity.duration || 'durée inconnue'}, allure ${activity.pace || 'inconnue'}, FC moyenne ${activity.avgHr ?? 'inconnue'} bpm, FC max ${activity.maxHr ?? 'inconnue'} bpm). Explique la qualité de l’effort et ce que cela change pour ma prochaine séance.`;
+}
+
+async function analyzeLatestActivityWithCoach() {
+  try {
+    const dialog = document.querySelector('#activityActionsSheet');
+    if (dialog?.open) dialog.close();
+    if (typeof closeDetail === 'function') closeDetail(document.querySelector('#activityDetail'));
+    if (typeof setScreen === 'function') setScreen('coach');
+    if (typeof sendCoachMessage === 'function') await sendCoachMessage(activityCoachPrompt());
+  } catch (error) {
+    console.error(error);
+    window.alert('Impossible de lancer l’analyse du Coach.');
+  }
+}
+
+function ensureActivityActions() {
+  let dialog = document.querySelector('#activityActionsSheet');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'activityActionsSheet';
+    dialog.className = 'bottom-sheet';
+    dialog.innerHTML = `
+      <div class="sheet-content">
+        <div class="sheet-handle"></div>
+        <div class="sheet-head"><div><span class="eyebrow">ACTIVITÉ</span><h2>Que veux-tu faire ?</h2></div></div>
+        <button class="button primary full" id="activityAnalyzeCoachAction" type="button">✦ Analyser avec le Coach</button>
+        <button class="button soft full" id="activityResyncAction" type="button">↻ Resynchroniser COROS</button>
+        <button class="text-link centered" id="activityActionsClose" type="button">Fermer</button>
+      </div>`;
+    document.body.appendChild(dialog);
+    dialog.querySelector('#activityAnalyzeCoachAction').addEventListener('click', analyzeLatestActivityWithCoach);
+    dialog.querySelector('#activityResyncAction').addEventListener('click', async () => {
+      dialog.close();
+      await syncCorosNow();
+      polishActivityUi();
+    });
+    dialog.querySelector('#activityActionsClose').addEventListener('click', () => dialog.close());
+  }
+
+  const more = document.querySelector('#activityDetail .more-button');
+  if (more && !more.dataset.activityMenuBound) {
+    more.dataset.activityMenuBound = '1';
+    more.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      ensureActivityActions();
+      dialog.showModal();
+    });
+  }
+
+  const viewActivity = document.querySelector('#viewActivityButton');
+  if (viewActivity && !viewActivity.dataset.activityPolishBound) {
+    viewActivity.dataset.activityPolishBound = '1';
+    viewActivity.addEventListener('click', () => setTimeout(polishActivityUi, 0));
+  }
+}
+
 async function bootstrapCoros() {
   ensureCorosUi();
+  ensureActivityActions();
+  polishActivityUi();
   const params = new URLSearchParams(window.location.search);
   const callbackState = params.get('coros');
   if (callbackState) {
@@ -176,6 +272,8 @@ async function bootstrapCoros() {
 }
 
 window.addEventListener('pageshow', () => {
+  ensureActivityActions();
+  setTimeout(polishActivityUi, 0);
   getCorosStatus().then(status => {
     renderCorosStatus(status);
     const old = status.connected && (!status.lastSyncAt || Date.now() - new Date(status.lastSyncAt).getTime() > 15 * 60 * 1000);
@@ -184,3 +282,4 @@ window.addEventListener('pageshow', () => {
 });
 
 setTimeout(bootstrapCoros, 450);
+setTimeout(() => { ensureActivityActions(); polishActivityUi(); }, 1200);
