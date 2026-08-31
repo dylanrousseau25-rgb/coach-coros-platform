@@ -3,12 +3,12 @@ import {
   startCorosOAuth,
   finishCorosOAuth,
   corosStatus,
-  syncCoros,
   disconnectCoros,
   overlayCorosDashboard,
   hasCorosConnection,
   readCorosCache
 } from './coros-mcp.mjs';
+import { syncCorosV2 } from './coros-sync-v2.mjs';
 
 function json(body, status = 200, cookies = []) {
   const headers = new Headers({
@@ -98,12 +98,13 @@ export default {
       }
 
       if (method === 'POST' && route === 'coros/sync') {
-        const result = await syncCoros(request);
+        const result = await syncCorosV2(request);
         return json({
           ok: true,
           syncedAt: result.cache.syncedAt,
           dataDate: result.cache.date,
-          errors: result.cache.errors
+          errors: result.cache.errors,
+          diagnostics: result.cache.diagnostics
         }, 200, result.setCookies);
       }
 
