@@ -124,6 +124,7 @@ async function syncCorosNow({ silent = false } = {}) {
     if (typeof safeReload === 'function') await safeReload();
     if (typeof applyFreshnessGuard === 'function') await applyFreshnessGuard();
     polishActivityUi();
+    if (!document.querySelector('#zonesCard')?.classList.contains('hidden')) renderProgressDetails();
     const after = await getCorosStatus();
     renderCorosStatus(after);
     const insight = document.querySelector('#readinessInsight');
@@ -154,6 +155,70 @@ async function disconnectCoros() {
 function numberOrNull(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function displayValue(value, suffix = '') {
+  if (value === null || value === undefined || value === '') return '—';
+  return `${value}${suffix}`;
+}
+
+function renderProgressDetails() {
+  try {
+    const data = typeof appData !== 'undefined' ? appData : null;
+    const card = document.querySelector('#zonesCard');
+    const list = document.querySelector('#heartRateZones');
+    const model = document.querySelector('#zoneModel');
+    if (!card || !list || !data) return;
+
+    const title = card.querySelector('h2');
+    if (title) title.textContent = 'Détails COROS';
+
+    const metrics = [
+      ['Récupération', displayValue(data.metrics?.recovery, '%')],
+      ['Sommeil', displayValue(data.metrics?.sleepDuration)],
+      ['Score sommeil', displayValue(data.metrics?.sleepScore, '/100')],
+      ['Charge court terme', displayValue(data.metrics?.shortTermLoad)],
+      ['Charge long terme', displayValue(data.metrics?.longTermLoad)],
+      ['Ratio de charge', displayValue(data.metrics?.loadRatio)],
+      ['VO₂max', displayValue(data.metrics?.vo2max)],
+      ['Allure seuil', displayValue(data.metrics?.thresholdPace)]
+    ];
+
+    const zones = data.heartRateZones?.zones || [];
+    if (model) {
+      model.textContent = zones.length
+        ? 'Données COROS synchronisées · zones FC disponibles'
+        : 'Données COROS synchronisées · zones FC non fournies par ce flux MCP';
+    }
+
+    const metricRows = metrics.map(([label, value]) =>
+      `<div class="zone-row"><b>•</b><span>${label}</span><strong>${value}</strong></div>`
+    ).join('');
+    const zoneRows = zones.length
+      ? `<div class="zone-row"><b>FC</b><span>Zones COROS</span><strong></strong></div>${zones.map(zone => `<div class="zone-row"><b>Z${zone.zone}</b><span>${zone.name}</span><strong>${zone.range}</strong></div>`).join('')}`
+      : '<div class="zone-row"><b>FC</b><span>Zones / FC seuil</span><strong>Non disponibles</strong></div>';
+    list.innerHTML = metricRows + zoneRows;
+  } catch (error) {
+    console.error('COROS progress details', error);
+  }
+}
+
+function ensureProgressDetails() {
+  const button = document.querySelector('#toggleZonesButton');
+  const card = document.querySelector('#zonesCard');
+  if (!button || !card || button.dataset.progressDetailsBound) return;
+  button.dataset.progressDetailsBound = '1';
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const opening = card.classList.contains('hidden');
+    card.classList.toggle('hidden', !opening);
+    button.textContent = opening ? 'Masquer ↑' : 'Voir tout ›';
+    if (opening) {
+      renderProgressDetails();
+      requestAnimationFrame(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }, true);
 }
 
 function polishActivityUi() {
@@ -247,6 +312,7 @@ function ensureActivityActions() {
 async function bootstrapCoros() {
   ensureCorosUi();
   ensureActivityActions();
+  ensureProgressDetails();
   polishActivityUi();
   const params = new URLSearchParams(window.location.search);
   const callbackState = params.get('coros');
@@ -273,7 +339,8 @@ async function bootstrapCoros() {
 
 window.addEventListener('pageshow', () => {
   ensureActivityActions();
-  setTimeout(polishActivityUi, 0);
+  ensureProgressDetails();
+  setTimeout(() => { polishActivityUi(); if (!document.querySelector('#zonesCard')?.classList.contains('hidden')) renderProgressDetails(); }, 0);
   getCorosStatus().then(status => {
     renderCorosStatus(status);
     const old = status.connected && (!status.lastSyncAt || Date.now() - new Date(status.lastSyncAt).getTime() > 15 * 60 * 1000);
@@ -282,4 +349,4 @@ window.addEventListener('pageshow', () => {
 });
 
 setTimeout(bootstrapCoros, 450);
-setTimeout(() => { ensureActivityActions(); polishActivityUi(); }, 1200);
+setTimeout(() => { ensureActivityActions(); ensureProgressDetails(); polishActivityUi(); }, 1200);
