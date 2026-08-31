@@ -124,3 +124,10 @@ setInterval(() => {
   if (runtimeLocalDateIso() !== freshnessLoadedDay) applyFreshnessGuard({ reload: true });
 }, 60_000);
 setTimeout(() => applyFreshnessGuard(), 300);
+
+if (!document.querySelector('script[data-coros-runtime]')) {
+  const corosScript = document.createElement('script');
+  corosScript.src = '/coros-runtime.js';
+  corosScript.dataset.corosRuntime = 'true';
+  document.head.appendChild(corosScript);
+}
