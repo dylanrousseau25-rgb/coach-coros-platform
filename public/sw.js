@@ -1,4 +1,4 @@
-const CACHE = 'coach-coros-v4-7-coros-oauth';
+const CACHE = 'coach-coros-v4-8-coros-activity';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/runtime-fixes.js', '/freshness-guard.js', '/coros-runtime.js', '/manifest.webmanifest'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
