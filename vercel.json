@@ -4,11 +4,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/router?path=:path*"
+      "destination": "/api/router-coros?path=:path*"
     }
   ],
   "functions": {
-    "api/router.mjs": {
+    "api/router-coros.mjs": {
       "maxDuration": 30
     }
   },
