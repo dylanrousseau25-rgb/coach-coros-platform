@@ -9,6 +9,7 @@ import {
   readCorosCache
 } from './coros-mcp.mjs';
 import { syncCorosV2 } from './coros-sync-v2.mjs';
+import { enhanceCorosSync } from './coros-extras.mjs';
 
 function json(body, status = 200, cookies = []) {
   const headers = new Headers({
@@ -98,7 +99,7 @@ export default {
       }
 
       if (method === 'POST' && route === 'coros/sync') {
-        const result = await syncCorosV2(request);
+        const result = await enhanceCorosSync(request, await syncCorosV2(request));
         return json({
           ok: true,
           syncedAt: result.cache.syncedAt,
