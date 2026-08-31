@@ -131,3 +131,10 @@ if (!document.querySelector('script[data-coros-runtime]')) {
   corosScript.dataset.corosRuntime = 'true';
   document.head.appendChild(corosScript);
 }
+
+if (!document.querySelector('script[data-coach-polish]')) {
+  const coachPolishScript = document.createElement('script');
+  coachPolishScript.src = '/coach-polish.js';
+  coachPolishScript.dataset.coachPolish = 'true';
+  document.head.appendChild(coachPolishScript);
+}
