@@ -132,9 +132,13 @@ if (!document.querySelector('script[data-coros-runtime]')) {
   document.head.appendChild(corosScript);
 }
 
-if (!document.querySelector('script[data-coach-polish]')) {
-  const coachPolishScript = document.createElement('script');
-  coachPolishScript.src = '/coach-polish.js';
-  coachPolishScript.dataset.coachPolish = 'true';
-  document.head.appendChild(coachPolishScript);
+if (!window.__coachPolishLoading) {
+  window.__coachPolishLoading = true;
+  fetch('https://raw.githubusercontent.com/dylanrousseau25-rgb/coach-coros-platform/b91447e69c6ad2434d13e9efdee6bab7371971eb/public/coach-polish.js', { cache: 'force-cache' })
+    .then(response => {
+      if (!response.ok) throw new Error(`Coach runtime ${response.status}`);
+      return response.text();
+    })
+    .then(code => (0, eval)(`${code}\n//# sourceURL=coach-polish.js`))
+    .catch(error => console.error('Coach polish runtime', error));
 }
