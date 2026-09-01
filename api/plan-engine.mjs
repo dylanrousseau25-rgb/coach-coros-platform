@@ -67,6 +67,9 @@ export function normalizeObjectivePayload(payload = {}) {
   const targetPaceSeconds = distanceKm && targetDurationMinutes ? (targetDurationMinutes*60)/distanceKm : parsePaceSeconds(payload.targetPace);
   const sessionsPerWeek = clamp(Math.round(num(payload.sessionsPerWeek) || 4), 2, 7);
   const date = payload.date || null;
+  const today = localDateIso();
+  const requestedStart = /^\d{4}-\d{2}-\d{2}$/.test(String(payload.startDate||'')) ? String(payload.startDate) : today;
+  const startDate = requestedStart < today ? today : (date && requestedStart > date ? date : requestedStart);
   const title = String(payload.title || '').trim();
   return {
     title,
@@ -74,6 +77,7 @@ export function normalizeObjectivePayload(payload = {}) {
     type: payload.type?.trim() || (/course|trail/i.test(sport) ? 'Course' : 'Objectif'),
     eventName: String(payload.eventName || title).trim(),
     date,
+    startDate,
     distanceKm: distanceKm && distanceKm > 0 ? Math.round(distanceKm*100)/100 : null,
     targetDurationMinutes,
     target: targetDurationMinutes ? formatDuration(targetDurationMinutes) : String(payload.target || '').trim(),
@@ -185,7 +189,9 @@ function generalSession(ctx) {
 
 function deterministicPlan(state, objective, fitnessContext, existingPlan = null) {
   const fit=fitnessSnapshot(state,fitnessContext);
-  const start=localDateIso();
+  const today=localDateIso();
+  const requestedStart=objective.startDate || existingPlan?.startDate || today;
+  const start=existingPlan?.status==='active' ? today : (requestedStart>=today ? requestedStart : today);
   const end=objective.date && objective.date>=start ? objective.date : addDays(start,56);
   const totalDays=Math.max(1,daysBetween(start,end));
   const totalWeeks=Math.max(1,Math.ceil((totalDays+1)/7));
@@ -215,17 +221,17 @@ function deterministicPlan(state, objective, fitnessContext, existingPlan = null
     });
   }
   sessions.sort((a,b)=>a.date.localeCompare(b.date));
-  const past=(existingPlan?.sessions||[]).filter(s=>s.date<start);
+  const past=existingPlan?.status==='active' ? (existingPlan?.sessions||[]).filter(s=>s.date<today) : [];
   const future=sessions.filter(s=>s.date>=start);
-  const currentPhase=phaseForWeek(0,totalWeeks);
+  const currentPhase=start>today?'À venir':phaseForWeek(0,totalWeeks);
   const caution=fit.conservative?'Charge actuelle ou ressenti récent invitant à démarrer prudemment. ':fit.underloaded?'Charge récente légère : progression volontairement graduelle. ':'';
-  const principle=`${caution}${objective.sessionsPerWeek} séances/semaine, progression par phases jusqu’au ${objective.date||end}. ${objective.targetPace?`Allure cible ${objective.targetPace}. `:''}Les séances faciles restent guidées par la FC ou les sensations disponibles.`;
+  const principle=`${caution}Début du plan le ${start}. ${objective.sessionsPerWeek} séances/semaine, progression par phases jusqu’au ${objective.date||end}. ${objective.targetPace?`Allure cible ${objective.targetPace}. `:''}Les séances faciles restent guidées par la FC ou les sensations disponibles.`;
   return {
     id: existingPlan?.id || `plan-${crypto.randomUUID()}`,
     objectiveId: objective.id,
     name:`Plan · ${objective.title}`,
     status: objective.status==='active'?'active':'draft',
-    startDate:start,endDate:end,totalWeeks,currentWeek:1,phase:currentPhase,principle,
+    startDate:start,endDate:end,totalWeeks,currentWeek:start>today?0:1,phase:currentPhase,principle,
     generatedBy:'personalized-plan-v2',generatedAt:new Date().toISOString(),generationMode:'rules',
     fitnessSnapshot:{recovery:fit.recovery,loadRatio:fit.loadRatio,vo2max:fit.metrics?.vo2max??null,latestActivity:fit.latestActivity?{date:fit.latestActivity.date,sport:fit.latestActivity.sport,distance:fit.latestActivity.distance,duration:fit.latestActivity.duration,pace:fit.latestActivity.pace,avgHr:fit.latestActivity.avgHr,maxHr:fit.latestActivity.maxHr}:null},
     sessions:[...past,...future]
@@ -265,13 +271,19 @@ async function refinePlanWithAi(state, objective, fitnessContext, basePlan) {
   if(!process.env.OPENAI_API_KEY)return basePlan;
   const fit=fitnessSnapshot(state,fitnessContext);
   const context={objective,athlete:state.athlete,metrics:fit.metrics,heartRateZones:fit.zones,latestActivity:fit.latestActivity,recentFeedback:fit.recentFeedback,basePlan:{...basePlan,sessions:basePlan.sessions.filter(s=>s.date>=basePlan.startDate)}};
-  const response=await fetch('https://api.openai.com/v1/responses',{
-    method:'POST',headers:{authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'content-type':'application/json'},
-    body:JSON.stringify({model:process.env.OPENAI_PLAN_MODEL||process.env.OPENAI_MODEL||'gpt-5.6-luna',reasoning:{effort:'medium'},input:`Tu construis un plan d'entraînement d'endurance personnalisé et prudent.\nContexte JSON:\n${JSON.stringify(context)}\n\nRègles impératives:\n- Réponds UNIQUEMENT avec un objet JSON valide.\n- Conserve exactement les mêmes dates et le même nombre de séances que basePlan.\n- Ne crée jamais deux séances dures consécutives.\n- Respecte sessionsPerWeek, les douleurs/vigilances du profil et la condition actuelle.\n- Les footings faciles sont pilotés par FC quand des zones sont disponibles, sinon par aisance/RPE.\n- L'objectif, sa distance, son temps et son allure cible doivent influencer les séances spécifiques.\n- Le plan précédent n'est qu'un historique, ne recopie pas ses séances.\nFormat: {"principle":"...","phase":"...","sessions":[{"date":"YYYY-MM-DD","title":"...","duration":"...","details":"...","hrTarget":"...","rpeTarget":"...","paceTarget":"...","zoneLabel":"..."}]}`})
-  });
-  if(!response.ok)return basePlan;
-  const parsed=parseJsonText(extractText(await response.json()));
-  return validateRefinement(basePlan,parsed)||basePlan;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  try{
+    const response=await fetch('https://api.openai.com/v1/responses',{
+      method:'POST',signal:controller.signal,headers:{authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'content-type':'application/json'},
+      body:JSON.stringify({model:process.env.OPENAI_PLAN_MODEL||process.env.OPENAI_MODEL||'gpt-5.6-luna',reasoning:{effort:'medium'},input:`Tu construis un plan d'entraînement d'endurance personnalisé et prudent.\nContexte JSON:\n${JSON.stringify(context)}\n\nRègles impératives:\n- Réponds UNIQUEMENT avec un objet JSON valide.\n- Conserve exactement les mêmes dates et le même nombre de séances que basePlan.\n- Ne crée jamais deux séances dures consécutives.\n- Respecte sessionsPerWeek, les douleurs/vigilances du profil et la condition actuelle.\n- Les footings faciles sont pilotés par FC quand des zones sont disponibles, sinon par aisance/RPE.\n- L'objectif, sa distance, son temps et son allure cible doivent influencer les séances spécifiques.\n- Le plan précédent n'est qu'un historique, ne recopie pas ses séances.\nFormat: {"principle":"...","phase":"...","sessions":[{"date":"YYYY-MM-DD","title":"...","duration":"...","details":"...","hrTarget":"...","rpeTarget":"...","paceTarget":"...","zoneLabel":"..."}]}`})
+    });
+    if(!response.ok)return basePlan;
+    const parsed=parseJsonText(extractText(await response.json()));
+    return validateRefinement(basePlan,parsed)||basePlan;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function createPersonalizedPlan({state, objective, fitnessContext=null, existingPlan=null}) {
@@ -280,10 +292,11 @@ export async function createPersonalizedPlan({state, objective, fitnessContext=n
 }
 
 export function refreshPlanPhase(plan, today = localDateIso()) {
-  if(!plan?.startDate||plan.generatedBy!=='personalized-plan-v2')return false;
+  if(!plan?.startDate||!/personalized-plan-v[23]/.test(plan.generatedBy||''))return false;
   const total=plan.totalWeeks||1;
-  const current=clamp(Math.floor(daysBetween(plan.startDate,today)/7)+1,1,total);
-  const phase=phaseForWeek(current-1,total);
+  const beforeStart=today<plan.startDate;
+  const current=beforeStart?0:clamp(Math.floor(daysBetween(plan.startDate,today)/7)+1,1,total);
+  const phase=beforeStart?'À venir':phaseForWeek(current-1,total);
   let changed=false;
   if(plan.currentWeek!==current){plan.currentWeek=current;changed=true;}
   if(plan.phase!==phase){plan.phase=phase;changed=true;}
