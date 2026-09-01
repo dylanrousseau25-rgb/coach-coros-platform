@@ -18,8 +18,18 @@ function setText(selector, value) {
   if (element) element.textContent = value;
 }
 
-function setNoTodaySession() {
-  const values = {
+function setNoTodaySession(data = null) {
+  const isPlannedRest = Boolean(data?.activePlan?.endDate && data?.meta?.today && data.meta.today <= data.activePlan.endDate);
+  const values = isPlannedRest ? {
+    '#todayTitle': 'Repos / récupération',
+    '#todaySport': 'Aucune séance prévue aujourd’hui',
+    '#todaySportIcon': '🧘',
+    '#todayDuration': '—',
+    '#todayZoneBpm': '—',
+    '#todayZoneName': 'Repos',
+    '#todayRpe': '1/10',
+    '#todayDetails': 'Cette journée sans séance fait partie du plan. Récupère, marche ou fais un peu de mobilité si tu en as envie.'
+  } : {
     '#todayTitle': 'Aucune séance planifiée',
     '#todaySport': 'Le plan doit être prolongé',
     '#todaySportIcon': '🗓️',
@@ -27,7 +37,7 @@ function setNoTodaySession() {
     '#todayZoneBpm': '—',
     '#todayZoneName': '—',
     '#todayRpe': '—',
-    '#todayDetails': 'Aucune séance n’est datée pour aujourd’hui. Le coach ne recycle plus une ancienne séance.'
+    '#todayDetails': 'Aucune séance n’est datée pour aujourd’hui et le plan ne couvre pas cette date.'
   };
   for (const [selector, value] of Object.entries(values)) setText(selector, value);
   for (const selector of ['#viewSessionButton', '#adaptBtn', '#doneBtn']) {
@@ -89,15 +99,15 @@ async function applyFreshnessGuard({ reload = false } = {}) {
     if (!data.meta?.corosMode || data.meta.corosMode === 'demo') maskDemoMetrics();
     const sessions = data.activePlan?.sessions || [];
     const todaySession = sessions.find(session => session.date === freshnessLoadedDay) || null;
-    if (!todaySession) setNoTodaySession();
+    if (!todaySession) setNoTodaySession(data);
     document.querySelectorAll('[data-session-id]').forEach(button => button.classList.remove('today'));
     if (todaySession) document.querySelector(`[data-session-id="${CSS.escape(todaySession.id)}"]`)?.classList.add('today');
     const futureSessions = sessions
       .filter(session => session.date && session.date >= freshnessLoadedDay && session.status !== 'completed')
       .sort((a, b) => a.date.localeCompare(b.date));
-    const nextKey = futureSessions.find(session => /blocs|seuil|longue|allure|tempo/i.test(session.title)) || futureSessions[0];
+    const nextKey = futureSessions.find(session => /blocs|seuil|longue|allure|tempo|fartlek/i.test(session.title)) || futureSessions[0];
     const nextKeyElement = document.querySelector('#nextKeySession');
-    if (nextKeyElement) nextKeyElement.textContent = nextKey ? `${nextKey.day || ''} · ${nextKey.title}` : 'Plan à prolonger';
+    if (nextKeyElement) nextKeyElement.textContent = nextKey ? `${nextKey.day || ''} · ${nextKey.title}` : 'Aucune séance future';
   } catch (error) {
     console.error('Freshness guard', error);
   }
@@ -125,4 +135,11 @@ if (!document.querySelector('script[data-coach-polish]')) {
   coachScript.src = '/coach-polish.js';
   coachScript.dataset.coachPolish = 'true';
   document.head.appendChild(coachScript);
+}
+
+if (!document.querySelector('script[data-plan-v2-runtime]')) {
+  const planScript = document.createElement('script');
+  planScript.src = '/plan-v2-runtime.js';
+  planScript.dataset.planV2Runtime = 'true';
+  document.head.appendChild(planScript);
 }
