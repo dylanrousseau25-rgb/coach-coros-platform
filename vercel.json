@@ -9,7 +9,7 @@
   ],
   "functions": {
     "api/router-coros.mjs": {
-      "maxDuration": 30
+      "maxDuration": 90
     }
   },
   "outputDirectory": "public"
