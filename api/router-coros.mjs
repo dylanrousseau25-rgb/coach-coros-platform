@@ -3,7 +3,7 @@ import { startCorosOAuth, finishCorosOAuth, corosStatus, disconnectCoros, overla
 import { syncCorosV2 } from './coros-sync-v2.mjs';
 import { enhanceCorosSync } from './coros-extras.mjs';
 import { loadRecentCorosActivityRefs } from './coros-recent.mjs';
-import { reconcileCorosActivities, auditPocState } from './poc-reconcile.mjs';
+import { reconcileCorosActivities, auditPocState, restorePocExtras } from './poc-reconcile.mjs';
 
 function json(body,status=200,cookies=[]){const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(JSON.stringify(body),{status,headers});}
 function redirect(location,cookies=[]){const headers=new Headers({location,'cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(null,{status:302,headers});}
@@ -32,6 +32,12 @@ if(method==='POST'&&route==='coros/sync'){
 if(method==='POST'&&route==='coros/disconnect')return json({ok:true},200,disconnectCoros());
 if(method==='GET'&&route==='dashboard'){const baseResponse=await baseRouter.fetch(request),base=await baseResponse.json();if(!baseResponse.ok)return json(base,baseResponse.status);return json(overlayCorosDashboard(base,request));}
 if(method==='GET'&&route==='poc/audit')return json(await auditPocState());
+if(method==='POST'&&route==='plans/continuity/restore'){
+  const payload=await request.json().catch(()=>({}));
+  await restorePocExtras(payload);
+  const forwarded=new Request(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(payload)});
+  return baseRouter.fetch(forwarded);
+}
 const planMutation=method==='POST'&&(route==='objectives'||/^objectives\/[^/]+\/regenerate$/.test(route)||/^plans\/[^/]+\/preferences\/propose$/.test(route)||/^plans\/[^/]+\/weekly-review$/.test(route));if(planMutation){const enriched=await injectFitnessContext(request);return baseRouter.fetch(enriched);}
 if(method==='POST'&&route==='coach'&&hasCorosConnection(request)){const cache=readCorosCache(request),dashboard=await liveDashboard(request);if(dashboard.meta?.corosMode==='mcp'&&cache){const{message}=await request.json();if(!message?.trim())return json({error:'Message vide'},400);const reply=await liveCoachReply(dashboard,message.trim());if(reply)return json({reply});}}
 return baseRouter.fetch(request);}catch(error){if(route==='coros/callback')return redirect(`/?coros=error&message=${encodeURIComponent(error?.message||'Connexion COROS impossible')}`);if(route.startsWith('coros/'))return json({error:error?.message||'Erreur COROS'},route==='coros/sync'?502:500);return json({error:error?.message||'Erreur serveur'},500);}}};
