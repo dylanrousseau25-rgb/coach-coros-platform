@@ -1,108 +1,15 @@
 import baseRouter from './router.mjs';
-import {
-  startCorosOAuth,
-  finishCorosOAuth,
-  corosStatus,
-  disconnectCoros,
-  overlayCorosDashboard,
-  hasCorosConnection,
-  readCorosCache
-} from './coros-mcp.mjs';
+import { startCorosOAuth, finishCorosOAuth, corosStatus, disconnectCoros, overlayCorosDashboard, hasCorosConnection, readCorosCache } from './coros-mcp.mjs';
 import { syncCorosV2 } from './coros-sync-v2.mjs';
 import { enhanceCorosSync } from './coros-extras.mjs';
 
-function json(body, status = 200, cookies = []) {
-  const headers = new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-  for (const value of cookies) headers.append('set-cookie', value);
-  return new Response(JSON.stringify(body), { status, headers });
-}
-function redirect(location, cookies = []) {
-  const headers = new Headers({ location, 'cache-control': 'no-store' });
-  for (const value of cookies) headers.append('set-cookie', value);
-  return new Response(null, { status: 302, headers });
-}
-async function baseDashboard(request) {
-  const url = new URL(request.url);
-  const baseRequest = new Request(`${url.origin}/api/router?path=dashboard`, {method:'GET',headers:request.headers});
-  const response = await baseRouter.fetch(baseRequest), data = await response.json();
-  if (!response.ok) throw new Error(data?.error || `Dashboard ${response.status}`);
-  return data;
-}
-function fitnessContextFromDashboard(data) {
-  return {
-    metrics: data.metrics || null,
-    heartRateZones: data.heartRateZones || null,
-    latestActivity: data.latestActivity || null,
-    recentFeedback: (data.feedback || []).slice(0, 8),
-    corosLive: data.meta?.corosMode === 'mcp',
-    corosLastSyncAt: data.meta?.corosLastSyncAt || null
-  };
-}
-async function forwardPlanMutationWithLiveContext(request, route) {
-  const url = new URL(request.url);
-  const payload = await request.json().catch(() => ({}));
-  if (hasCorosConnection(request)) {
-    const dashboard = overlayCorosDashboard(await baseDashboard(request), request);
-    payload._fitnessContext = fitnessContextFromDashboard(dashboard);
-  }
-  const forwarded = new Request(`${url.origin}/api/router?path=${encodeURIComponent(route)}`, {
-    method:'POST',
-    headers:{'content-type':'application/json','x-coach-internal':'coros-overlay'},
-    body:JSON.stringify(payload)
-  });
-  return baseRouter.fetch(forwarded);
-}
-
-async function liveCoachReply(data, message) {
-  if (!process.env.OPENAI_API_KEY) return null;
-  const context = {
-    athlete: data.athlete,
-    heartRateZones: data.heartRateZones,
-    metrics: data.metrics,
-    dataFreshness: {today:data.meta?.today,corosLive:data.meta?.corosMode==='mcp',lastSyncAt:data.meta?.corosLastSyncAt||null},
-    activeObjective:data.activeObjective,activePlan:data.activePlan,todaySession:data.todaySession,latestActivity:data.latestActivity,recentFeedback:(data.feedback||[]).slice(0,8)
-  };
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method:'POST',
-    headers:{authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'content-type':'application/json'},
-    body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-5.6-luna',reasoning:{effort:'low'},input:`Tu es Coach COROS, coach d'endurance prudent.\nContexte JSON:\n${JSON.stringify(context)}\nMessage de l'athlète: ${message}\nRéponds en français, de façon concise et pratique. Utilise uniquement les métriques COROS quand dataFreshness.corosLive est vrai. Prévention des blessures avant la performance. Pour les séances faciles, la fréquence cardiaque reste prioritaire quand des zones synchronisées sont disponibles.`})
-  });
-  if (!response.ok) throw new Error(`OpenAI API ${response.status}: ${await response.text()}`);
-  const payload = await response.json();
-  return (payload.output||[]).flatMap(item=>item.content||[]).filter(item=>item.type==='output_text').map(item=>item.text).join('\n').trim() || 'Pas de réponse.';
-}
-
-export default {
-  async fetch(request) {
-    const url = new URL(request.url), route = url.searchParams.get('path') || '', method = request.method.toUpperCase();
-    try {
-      if (method==='GET' && route==='coros/connect') { const result=await startCorosOAuth(request); return redirect(result.location,result.setCookies); }
-      if (method==='GET' && route==='coros/callback') { const result=await finishCorosOAuth(request); return redirect(result.location,result.setCookies); }
-      if (method==='GET' && route==='coros/status') return json(corosStatus(request));
-      if (method==='POST' && route==='coros/sync') {
-        const result=await enhanceCorosSync(request,await syncCorosV2(request));
-        return json({ok:true,syncedAt:result.cache.syncedAt,dataDate:result.cache.date,errors:result.cache.errors,diagnostics:result.cache.diagnostics},200,result.setCookies);
-      }
-      if (method==='POST' && route==='coros/disconnect') return json({ok:true},200,disconnectCoros());
-      if (method==='GET' && route==='dashboard') {
-        const baseResponse=await baseRouter.fetch(request), base=await baseResponse.json();
-        if(!baseResponse.ok)return json(base,baseResponse.status);
-        return json(overlayCorosDashboard(base,request));
-      }
-
-      if (method==='POST' && (route==='objectives' || /^objectives\/[^/]+\/regenerate$/.test(route))) {
-        return forwardPlanMutationWithLiveContext(request, route);
-      }
-
-      if (method==='POST' && route==='coach' && hasCorosConnection(request)) {
-        const cache=readCorosCache(request), dashboard=overlayCorosDashboard(await baseDashboard(request),request);
-        if(dashboard.meta?.corosMode==='mcp'&&cache){const{message}=await request.json();if(!message?.trim())return json({error:'Message vide'},400);const reply=await liveCoachReply(dashboard,message.trim());if(reply)return json({reply});}
-      }
-      return baseRouter.fetch(request);
-    } catch(error) {
-      if(route==='coros/callback'){const message=encodeURIComponent(error?.message||'Connexion COROS impossible');return redirect(`/?coros=error&message=${message}`);}
-      if(route.startsWith('coros/'))return json({error:error?.message||'Erreur COROS'},route==='coros/sync'?502:500);
-      return json({error:error?.message||'Erreur serveur'},500);
-    }
-  }
-};
+function json(body,status=200,cookies=[]){const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(JSON.stringify(body),{status,headers});}
+function redirect(location,cookies=[]){const headers=new Headers({location,'cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(null,{status:302,headers});}
+async function baseDashboard(request){const url=new URL(request.url),req=new Request(`${url.origin}/api/router?path=dashboard`,{method:'GET',headers:request.headers}),response=await baseRouter.fetch(req),data=await response.json();if(!response.ok)throw new Error(data?.error||`Dashboard ${response.status}`);return data;}
+async function liveDashboard(request){return overlayCorosDashboard(await baseDashboard(request),request);}
+async function injectFitnessContext(request){if(!hasCorosConnection(request))return request;const dashboard=await liveDashboard(request);if(dashboard.meta?.corosMode!=='mcp')return request;const payload=await request.json().catch(()=>({}));payload._fitnessContext={metrics:dashboard.metrics||{},heartRateZones:dashboard.heartRateZones||{},latestActivity:dashboard.latestActivity||null,recentFeedback:(dashboard.feedback||[]).slice(0,12),corosLastSyncAt:dashboard.meta?.corosLastSyncAt||null};return new Request(request.url,{method:request.method,headers:request.headers,body:JSON.stringify(payload)});}
+async function liveCoachReply(data,message){if(!process.env.OPENAI_API_KEY)return null;const context={athlete:data.athlete,heartRateZones:data.heartRateZones,metrics:data.metrics,dataFreshness:{today:data.meta?.today,corosLive:data.meta?.corosMode==='mcp',lastSyncAt:data.meta?.corosLastSyncAt||null},activeObjective:data.activeObjective,activePlan:data.activePlan,todaySession:data.todaySession,latestActivity:data.latestActivity,recentFeedback:(data.feedback||[]).slice(0,8),planPreferences:data.activePlan?.preferences||null};const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-5.6-luna',reasoning:{effort:'low'},input:`Tu es Coach COROS, coach d'endurance prudent et collaboratif.\nContexte JSON:\n${JSON.stringify(context)}\nMessage de l'athlète: ${message}\nRéponds en français, de façon concise et pratique. Utilise uniquement les métriques COROS quand elles sont live. Explique les compromis quand l'athlète veut modifier le plan : il reste décisionnaire, mais tu dois signaler clairement une modification que tu déconseilles. Prévention des blessures avant la performance.`})});if(!response.ok)throw new Error(`OpenAI API ${response.status}: ${await response.text()}`);const payload=await response.json();return(payload.output||[]).flatMap(i=>i.content||[]).filter(i=>i.type==='output_text').map(i=>i.text).join('\n').trim()||'Pas de réponse.';}
+export default{async fetch(request){const url=new URL(request.url),route=url.searchParams.get('path')||'',method=request.method.toUpperCase();try{if(method==='GET'&&route==='coros/connect'){const result=await startCorosOAuth(request);return redirect(result.location,result.setCookies);}if(method==='GET'&&route==='coros/callback'){const result=await finishCorosOAuth(request);return redirect(result.location,result.setCookies);}if(method==='GET'&&route==='coros/status')return json(corosStatus(request));if(method==='POST'&&route==='coros/sync'){const result=await enhanceCorosSync(request,await syncCorosV2(request));return json({ok:true,syncedAt:result.cache.syncedAt,dataDate:result.cache.date,errors:result.cache.errors,diagnostics:result.cache.diagnostics},200,result.setCookies);}if(method==='POST'&&route==='coros/disconnect')return json({ok:true},200,disconnectCoros());if(method==='GET'&&route==='dashboard'){const baseResponse=await baseRouter.fetch(request),base=await baseResponse.json();if(!baseResponse.ok)return json(base,baseResponse.status);return json(overlayCorosDashboard(base,request));}
+const planMutation=method==='POST'&&(route==='objectives'||/^objectives\/[^/]+\/regenerate$/.test(route)||/^plans\/[^/]+\/preferences\/propose$/.test(route)||/^plans\/[^/]+\/weekly-review$/.test(route));if(planMutation){const enriched=await injectFitnessContext(request);return baseRouter.fetch(enriched);}
+if(method==='POST'&&route==='coach'&&hasCorosConnection(request)){const cache=readCorosCache(request),dashboard=await liveDashboard(request);if(dashboard.meta?.corosMode==='mcp'&&cache){const{message}=await request.json();if(!message?.trim())return json({error:'Message vide'},400);const reply=await liveCoachReply(dashboard,message.trim());if(reply)return json({reply});}}
+return baseRouter.fetch(request);}catch(error){if(route==='coros/callback')return redirect(`/?coros=error&message=${encodeURIComponent(error?.message||'Connexion COROS impossible')}`);if(route.startsWith('coros/'))return json({error:error?.message||'Erreur COROS'},route==='coros/sync'?502:500);return json({error:error?.message||'Erreur serveur'},500);}}};
