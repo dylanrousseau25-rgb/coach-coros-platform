@@ -67,6 +67,14 @@ export async function reconcileCorosActivities(activities=[]){
   return{matched,matchedCount:matched.length,unmatched:Math.max(0,refs.length-matched.length),activePlanId:plan.id};
 }
 
+export async function restorePocExtras(payload={}){
+  const state=await readState();
+  if(Array.isArray(payload.feedback))state.feedback=payload.feedback.slice(0,200);
+  if(Array.isArray(payload.coachMessages))state.coachMessages=payload.coachMessages.slice(0,120);
+  await saveState(state);
+  return{ok:true,feedbackCount:(state.feedback||[]).length,coachMessageCount:(state.coachMessages||[]).length};
+}
+
 export async function auditPocState(){
   const state=await readState();
   const activeObjectives=(state.objectives||[]).filter(o=>o.status==='active');
@@ -76,6 +84,7 @@ export async function auditPocState(){
   return{
     ok:activeObjectives.length<=1&&activePlans.length<=1&&!orphanObjectives.length&&!orphanPlans.length,
     activeObjectives:activeObjectives.length,activePlans:activePlans.length,
-    orphanObjectiveIds:orphanObjectives.map(o=>o.id),orphanPlanIds:orphanPlans.map(p=>p.id)
+    orphanObjectiveIds:orphanObjectives.map(o=>o.id),orphanPlanIds:orphanPlans.map(p=>p.id),
+    feedbackCount:(state.feedback||[]).length
   };
 }
