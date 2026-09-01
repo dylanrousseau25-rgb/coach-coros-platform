@@ -79,7 +79,7 @@ function extract(result){
   return values.length===1?values[0]:values.length?values:result;
 }
 async function tool(token,name,args={}){
-  await rpc(token,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'Coach COROS Platform',version:'1.3.0'}},1);
+  await rpc(token,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'Coach COROS Platform',version:'1.4.0'}},1);
   return extract((await rpc(token,'tools/call',{name,arguments:args},2))?.result);
 }
 
@@ -88,12 +88,32 @@ function flatten(root){
   if(root==null)return '';
   if(typeof root==='string')return root;
   const out=[],q=[root],seen=new Set();
-  while(q.length){const x=q.shift();if(x==null)continue;if(typeof x==='string'){out.push(x);continue}if(typeof x!=='object'||seen.has(x))continue;seen.add(x);if(Array.isArray(x)){q.push(...x);continue}for(const [k,v] of Object.entries(x)){if(['string','number','boolean'].includes(typeof v))out.push(`${k}: ${v}`);else if(v&&typeof v==='object')q.push(v)}}
+  while(q.length){
+    const x=q.shift();
+    if(x==null)continue;
+    if(typeof x==='string'){out.push(x);continue}
+    if(typeof x!=='object'||seen.has(x))continue;
+    seen.add(x);
+    if(Array.isArray(x)){q.push(...x);continue}
+    for(const [k,v] of Object.entries(x)){
+      if(['string','number','boolean'].includes(typeof v))out.push(`${k}: ${v}`);
+      else if(v&&typeof v==='object')q.push(v);
+    }
+  }
   return out.join('\n');
 }
 function entry(root,names){
   const wanted=new Set(names.map(key)),q=[root],seen=new Set();
-  while(q.length){const x=q.shift();if(!x||typeof x!=='object'||seen.has(x))continue;seen.add(x);if(Array.isArray(x)){q.push(...x);continue}for(const [k,v] of Object.entries(x)){if(wanted.has(key(k))&&['string','number','boolean'].includes(typeof v)&&v!=='')return {key:k,value:v};if(v&&typeof v==='object')q.push(v)}}
+  while(q.length){
+    const x=q.shift();
+    if(!x||typeof x!=='object'||seen.has(x))continue;
+    seen.add(x);
+    if(Array.isArray(x)){q.push(...x);continue}
+    for(const [k,v] of Object.entries(x)){
+      if(wanted.has(key(k))&&['string','number','boolean'].includes(typeof v)&&v!=='')return {key:k,value:v};
+      if(v&&typeof v==='object')q.push(v);
+    }
+  }
   return null;
 }
 function num(v){if(typeof v==='number'&&Number.isFinite(v))return v;const m=String(v??'').replace(',','.').match(/-?\d+(?:\.\d+)?/);return m?Number(m[0]):null}
@@ -103,38 +123,122 @@ function findText(root,names,regexes=[]){const e=entry(root,names);if(e?.value!=
 function sleepDuration(...sources){
   const names=['mainSleepDuration','mainSleepDurationSeconds','mainSleepDurationMinutes','sleepDuration','sleepDurationSeconds','sleepDurationMinutes','totalSleepDuration','totalSleepTime','sleepTotalTime','sleepMinutes','sleepSeconds','mainSleepTime','totalSleep','mainSleep'];
   for(const src of sources){
-    const e=entry(src,names); if(e){
+    const e=entry(src,names);
+    if(e){
       const text=String(e.value).trim(), hm=text.match(/(\d+)\s*h\s*(\d+)?\s*(?:m|min)?/i), clock=text.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\b/);
       if(hm)return `${Number(hm[1])} h ${String(Number(hm[2]||0)).padStart(2,'0')}`;
       if(clock)return `${Number(clock[1])} h ${clock[2]}`;
-      const n=num(e.value); if(n!==null){const k=key(e.key);let mins=k.includes('second')?Math.round(n/60):k.includes('minute')?Math.round(n):n>1440?Math.round(n/60):n<=24?Math.round(n*60):Math.round(n);if(mins>0&&mins<=1440)return `${Math.floor(mins/60)} h ${String(mins%60).padStart(2,'0')}`}
+      const n=num(e.value);
+      if(n!==null){
+        const k=key(e.key);
+        let mins=k.includes('second')?Math.round(n/60):k.includes('minute')?Math.round(n):n>1440?Math.round(n/60):n<=24?Math.round(n*60):Math.round(n);
+        if(mins>0&&mins<=1440)return `${Math.floor(mins/60)} h ${String(mins%60).padStart(2,'0')}`;
+      }
     }
     const t=flatten(src);
-    let m=t.match(/(?:main\s+sleep|total\s+sleep|sleep)(?:\s+(?:duration|time))?\s*[:=]\s*(\d+\s*h\s*\d*\s*(?:m|min)?)/i);if(m){const p=m[1].match(/(\d+)\s*h\s*(\d+)?/i);return `${Number(p[1])} h ${String(Number(p[2]||0)).padStart(2,'0')}`}
-    m=t.match(/(?:main\s+sleep|total\s+sleep|sleep)(?:\s+(?:duration|time))?\s*[:=]\s*(\d{1,2}):(\d{2})/i);if(m)return `${Number(m[1])} h ${m[2]}`;
+    let m=t.match(/(?:main\s+sleep|total\s+sleep|sleep)(?:\s+(?:duration|time))?\s*[:=]\s*(\d+\s*h\s*\d*\s*(?:m|min)?)/i);
+    if(m){const p=m[1].match(/(\d+)\s*h\s*(\d+)?/i);return `${Number(p[1])} h ${String(Number(p[2]||0)).padStart(2,'0')}`}
+    m=t.match(/(?:main\s+sleep|total\s+sleep|sleep)(?:\s+(?:duration|time))?\s*[:=]\s*(\d{1,2}):(\d{2})/i);
+    if(m)return `${Number(m[1])} h ${m[2]}`;
   }
   return null;
 }
 
-function dateOf(v){if(!v&&v!==0)return null;const s=String(v),m=s.match(/(20\d{2})[-/]?(\d{2})[-/]?(\d{2})/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;const n=num(v);if(n&&n>1e9){const ms=n>1e10?n:n*1000;try{return new Date(ms).toISOString().slice(0,10)}catch{}}return null}
-function structuredRefs(raw){
+function dateInTimezone(date,timezone){
+  if(!(date instanceof Date)||Number.isNaN(date.getTime()))return null;
+  return new Intl.DateTimeFormat('en-CA',{timeZone:timezone||'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+}
+function dateOf(v,timezone='Europe/Paris'){
+  if(!v&&v!==0)return null;
+  const s=String(v).trim();
+  let m=s.match(/\b(20\d{2})[-/]?(\d{2})[-/]?(\d{2})(?:[T\s]?\d{2}:?\d{2}:?\d{0,2})?\b/);
+  if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/\b(20\d{2})(\d{2})(\d{2})\d{6}\b/);
+  if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  const n=Number(s);
+  if(Number.isFinite(n)&&n>1e9&&n<1e14){
+    const ms=n>1e11?n:n*1000;
+    return dateInTimezone(new Date(ms),timezone);
+  }
+  const parsed=Date.parse(s);
+  return Number.isFinite(parsed)?dateInTimezone(new Date(parsed),timezone):null;
+}
+function findActivityDate(root,timezone='Europe/Paris'){
+  if(!root)return null;
+  const priority=[
+    'startTimestamp','activityStartTimestamp','startTimeStamp','beginTimestamp','beginTime','startDateTime','activityStartTime','startTime',
+    'activityDate','startDate','date'
+  ];
+  for(const name of priority){
+    const e=entry(root,[name]);
+    const d=dateOf(e?.value,timezone);
+    if(d)return d;
+  }
+  const t=flatten(root);
+  const ts=t.match(/(?:startTimestamp|activityStartTimestamp|Start\s*Timestamp)\s*[:=]\s*(\d{10,13})/i)?.[1];
+  if(ts){const d=dateOf(ts,timezone);if(d)return d}
+  const iso=t.match(/(?:startDateTime|activityStartTime|startTime|activityDate|startDate)\s*[:=]\s*([^\n|]+)/i)?.[1];
+  return iso?dateOf(iso,timezone):null;
+}
+function structuredRefs(raw,timezone='Europe/Paris'){
   const refs=[],q=[raw],seen=new Set();
-  while(q.length){const x=q.shift();if(!x||typeof x!=='object'||seen.has(x))continue;seen.add(x);if(Array.isArray(x)){q.push(...x);continue}const l=entry(x,['labelId','labelID']),s=entry(x,['sportType','sportTypeCode']);if(l?.value!=null&&s?.value!=null){const d=entry(x,['date','startDate','activityDate','startTime','startTimestamp']);refs.push({labelId:String(l.value),sportType:Number(s.value),date:dateOf(d?.value),source:x});continue}q.push(...Object.values(x).filter(v=>v&&typeof v==='object'))}
+  while(q.length){
+    const x=q.shift();
+    if(!x||typeof x!=='object'||seen.has(x))continue;
+    seen.add(x);
+    if(Array.isArray(x)){q.push(...x);continue}
+    const l=entry(x,['labelId','labelID']),s=entry(x,['sportType','sportTypeCode']);
+    if(l?.value!=null&&s?.value!=null){
+      refs.push({labelId:String(l.value),sportType:Number(s.value),date:findActivityDate(x,timezone),source:x});
+      continue;
+    }
+    q.push(...Object.values(x).filter(v=>v&&typeof v==='object'));
+  }
   return refs;
 }
-function textRefs(raw){
+function textRefs(raw,timezone='Europe/Paris'){
   const t=flatten(raw),matches=[...t.matchAll(/(?:Label\s*Id|labelId)\s*[:=]\s*([A-Za-z0-9_-]+)/gi)];
-  return matches.map((m,i)=>{const a=Math.max(0,(matches[i-1]?.index??m.index-1600)),b=Math.min(t.length,matches[i+1]?.index??m.index+1600),block=t.slice(a,b);const sm=block.match(/(?:Sport\s*Type(?:\s*Code)?|sportType)\s*[:=]\s*(\d+)/i),dates=[...block.matchAll(/(20\d{2})[-/]?(\d{2})[-/]?(\d{2})/g)].map(x=>`${x[1]}-${x[2]}-${x[3]}`),ts=[...block.matchAll(/(?:startTimestamp|Start\s*Timestamp)\s*[:=]\s*(\d{10,13})/gi)];return {labelId:m[1],sportType:sm?Number(sm[1]):null,date:dates.at(-1)||(ts.length?dateOf(ts.at(-1)[1]):null),source:block}}).filter(x=>x.sportType!=null);
+  return matches.map((m,i)=>{
+    const a=Math.max(0,(matches[i-1]?.index??m.index-1600)),b=Math.min(t.length,matches[i+1]?.index??m.index+1600),block=t.slice(a,b);
+    const sm=block.match(/(?:Sport\s*Type(?:\s*Code)?|sportType)\s*[:=]\s*(\d+)/i);
+    const ts=[...block.matchAll(/(?:startTimestamp|activityStartTimestamp|Start\s*Timestamp)\s*[:=]\s*(\d{10,13})/gi)].at(-1)?.[1];
+    const explicit=block.match(/(?:startDateTime|activityStartTime|activityDate|startDate)\s*[:=]\s*([^\n|]+)/i)?.[1];
+    const dates=[...block.matchAll(/(20\d{2})[-/]?(\d{2})[-/]?(\d{2})/g)].map(x=>`${x[1]}-${x[2]}-${x[3]}`);
+    return {labelId:m[1],sportType:sm?Number(sm[1]):null,date:(ts&&dateOf(ts,timezone))||(explicit&&dateOf(explicit,timezone))||dates.at(-1)||null,source:block};
+  }).filter(x=>x.sportType!=null);
 }
-function latestRef(raw){const refs=structuredRefs(raw);if(!refs.length)refs.push(...textRefs(raw));refs.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));return refs[0]||null}
-function analysisText(raw){if(!raw)return null;if(typeof raw==='string')return raw.trim().slice(0,1800);const direct=findText(raw,['analysis','summary','coachSummary','recommendation','text','message']);return (direct||flatten(raw).trim()||null)?.slice(0,1800)||null}
-function enrichActivity(base,ref,detail,analysis){
-  if(!base&&!ref&&!detail)return null;const src=detail||ref?.source||{};const sportType=ref?.sportType??base?.sportType??null;
+function latestRef(raw,timezone='Europe/Paris'){
+  const refs=structuredRefs(raw,timezone);
+  if(!refs.length)refs.push(...textRefs(raw,timezone));
+  refs.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  return refs[0]||null;
+}
+function analysisText(raw){
+  if(!raw)return null;
+  if(typeof raw==='string')return raw.trim().slice(0,1800);
+  const direct=findText(raw,['analysis','summary','coachSummary','recommendation','text','message']);
+  return (direct||flatten(raw).trim()||null)?.slice(0,1800)||null;
+}
+function enrichActivity(base,ref,detail,analysis,timezone='Europe/Paris'){
+  if(!base&&!ref&&!detail)return null;
+  const src=detail||ref?.source||{},sportType=ref?.sportType??base?.sportType??null;
   let sport=findText(src,['sportName','sportTypeName','activityName','name'],[/(?:Sport\s*Name|Activity\s*Name|Workout\s*Name)\s*[:=]\s*([^\n|]+)/i])||base?.sport;
   if(!sport||/^Activité COROS$/i.test(sport))sport=SPORT_NAMES.get(Number(sportType))||'Activité COROS';
   const avg=findNum(src,['avgHr','averageHeartRate','avgHeartRate','averageHeartRateBpm','heartRateAvg','avgPulse'],[/(?:Average|Avg)\s*(?:Heart\s*Rate|HR|Pulse)\s*[:=]\s*(\d+)/i]);
   const max=findNum(src,['maxHr','maxHeartRate','maximumHeartRate','maxHeartRateBpm','heartRateMax','maxPulse'],[/Max(?:imum)?\s*(?:Heart\s*Rate|HR|Pulse)\s*[:=]\s*(\d+)/i]);
-  return {...(base||{}),id:ref?.labelId?`coros-${ref.labelId}`:(base?.id||`coros-${Date.now()}`),labelId:ref?.labelId||base?.labelId||null,sportType,date:ref?.date||base?.date||dateOf(entry(src,['date','startDate','startTime','startTimestamp'])?.value),sport,avgHr:avg??base?.avgHr??null,maxHr:max??base?.maxHr??null,coachNote:analysisText(analysis)||base?.coachNote||'Activité synchronisée depuis COROS.',source:'COROS MCP'};
+  const detailDate=findActivityDate(detail,timezone);
+  return {
+    ...(base||{}),
+    id:ref?.labelId?`coros-${ref.labelId}`:(base?.id||`coros-${Date.now()}`),
+    labelId:ref?.labelId||base?.labelId||null,
+    sportType,
+    date:detailDate||ref?.date||base?.date||findActivityDate(src,timezone),
+    sport,
+    avgHr:avg??base?.avgHr??null,
+    maxHr:max??base?.maxHr??null,
+    coachNote:analysisText(analysis)||base?.coachNote||'Activité synchronisée depuis COROS.',
+    source:'COROS MCP'
+  };
 }
 
 function todayIso(){return new Intl.DateTimeFormat('en-CA',{timeZone:process.env.APP_TIMEZONE||'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
@@ -144,7 +248,7 @@ function safeError(e){return String(e?.message||e||'Erreur').replace(/Bearer\s+\
 
 export async function enhanceCorosSync(request,result){
   const token=accessToken(request,result);if(!token)return result;
-  const cache=structuredClone(result.cache);cache.version=3;cache.errors||={};cache.diagnostics||={};
+  const cache=structuredClone(result.cache);cache.version=4;cache.errors||={};cache.diagnostics||={};
   const timezone=process.env.APP_TIMEZONE||'Europe/Paris',today=todayIso();
   let sleep=null,daily=null,records=null,detail=null,analysis=null;
   try{sleep=await tool(token,'querySleepData',{days:2,timezone})}catch(e){cache.errors.sleepExtra=safeError(e)}
@@ -152,13 +256,22 @@ export async function enhanceCorosSync(request,result){
   const sd=sleepDuration(sleep,daily);if(sd)cache.metrics.sleepDuration=sd;
   if(cache.metrics.sleepScore==null)cache.metrics.sleepScore=findNum(sleep,['sleepScore','sleepQualityScore'],[/Sleep\s*Score\s*[:=]\s*(\d+)/i])??findNum(daily,['sleepScore','sleepQualityScore'],[/Sleep\s*(?:Score|Quality)\s*[:=]\s*(\d+)/i]);
   try{records=await tool(token,'querySportRecords',{startDate:ymd(addDays(today,-14)),endDate:ymd(today),limit:20,timezone})}catch(e){cache.errors.activityListExtra=safeError(e)}
-  const ref=latestRef(records);
+  const ref=latestRef(records,timezone);
   if(ref?.labelId&&Number.isFinite(ref.sportType)){
     try{detail=await tool(token,'getActivityDetail',{labelId:ref.labelId,sportType:ref.sportType})}catch(e){cache.errors.activityDetailExtra=safeError(e)}
     try{analysis=await tool(token,'analyzeActivityDetail',{labelId:ref.labelId,sportType:ref.sportType,focus:'fréquence cardiaque, allure, stabilité de l’effort, charge et conséquence pour la prochaine séance'})}catch(e){cache.errors.activityAnalysis=safeError(e)}
   }
-  cache.latestActivity=enrichActivity(cache.latestActivity,ref,detail,analysis);cache.date=today;cache.syncedAt=new Date().toISOString();
-  cache.diagnostics.extra={sleepFound:Boolean(cache.metrics?.sleepDuration),activityDateFound:Boolean(cache.latestActivity?.date),activityMaxHrFound:cache.latestActivity?.maxHr!=null,activityAnalysisFound:Boolean(cache.latestActivity?.coachNote&&cache.latestActivity.coachNote!=='Activité synchronisée depuis COROS.'),thresholdHrAvailableFromMcp:false};
+  cache.latestActivity=enrichActivity(cache.latestActivity,ref,detail,analysis,timezone);
+  cache.date=today;
+  cache.syncedAt=new Date().toISOString();
+  cache.diagnostics.extra={
+    sleepFound:Boolean(cache.metrics?.sleepDuration),
+    activityDateFound:Boolean(cache.latestActivity?.date),
+    activityDateSource:findActivityDate(detail,timezone)?'activity-detail':ref?.date?'sport-record':'cache',
+    activityMaxHrFound:cache.latestActivity?.maxHr!=null,
+    activityAnalysisFound:Boolean(cache.latestActivity?.coachNote&&cache.latestActivity.coachNote!=='Activité synchronisée depuis COROS.'),
+    thresholdHrAvailableFromMcp:false
+  };
   console.log('[COROS extras]',JSON.stringify({detected:cache.diagnostics.extra,errorKeys:Object.keys(cache.errors)}));
   return {cache,setCookies:[...(result.setCookies||[]),cookie(CACHE_COOKIE,seal(cache),60*60*24*7)]};
 }
