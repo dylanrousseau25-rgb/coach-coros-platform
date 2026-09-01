@@ -1,9 +1,10 @@
 (() => {
   const KEY='coach-plan-continuity-v2';
+  const LEGACY_KEY='coach-plan-continuity-v1';
   const originalFetch=window.fetch.bind(window);
   const empty=()=>({deletedObjectiveIds:[],objectives:[],plans:[],planVersions:[],planProposals:[],feedback:[],coachMessages:[],savedAt:null});
-  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')||empty();}catch{return empty();}};
-  const write=value=>{try{localStorage.setItem(KEY,JSON.stringify({...empty(),...value,savedAt:new Date().toISOString()}));}catch(error){console.warn('Plan continuity write',error);}};
+  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||localStorage.getItem(LEGACY_KEY)||'null')||empty();}catch{return empty();}};
+  const write=value=>{try{localStorage.setItem(KEY,JSON.stringify({...empty(),...value,savedAt:new Date().toISOString()}));localStorage.removeItem(LEGACY_KEY);}catch(error){console.warn('Plan continuity write',error);}};
   function mergeRecords(server=[],local=[],identity=item=>item?.id||''){
     const map=new Map();
     for(const item of server||[]){const id=identity(item);if(id)map.set(id,item);}
@@ -28,7 +29,7 @@
     }catch(error){console.warn('Plan continuity capture',error);}
   }
   function markDeleted(objectiveId){const local=read(),deleted=new Set(local.deletedObjectiveIds||[]);deleted.add(objectiveId);write({...local,deletedObjectiveIds:[...deleted],objectives:(local.objectives||[]).filter(o=>o.id!==objectiveId),plans:(local.plans||[]).filter(p=>p.objectiveId!==objectiveId)});}
-  async function restoreBackend(){const local=read();if(!local.savedAt)return;try{await originalFetch('/api/plans/continuity/restore',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deletedObjectiveIds:local.deletedObjectiveIds||[],objectives:local.objectives||[],plans:local.plans||[],planVersions:local.planVersions||[],planProposals:local.planProposals||[],feedback:local.feedback||[],coachMessages:local.coachMessages||[]})});}catch(error){console.warn('Plan continuity restore',error);}}
+  async function restoreBackend(){const local=read();if(!local.savedAt)return;try{await originalFetch('/api/plans/continuity/restore',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deletedObjectiveIds:local.deletedObjectiveIds||[],objectives:local.objectives||[],plans:local.plans||[],planVersions:local.planVersions||[],planProposals:local.planProposals||[],feedback:local.feedback||[],coachMessages:local.coachMessages||[]})});write(local);}catch(error){console.warn('Plan continuity restore',error);}}
   window.fetch=async function(input,init){const response=await originalFetch(input,init);try{const url=typeof input==='string'?input:input?.url||'',method=String(init?.method||input?.method||'GET').toUpperCase();if(method==='GET'&&/\/api\/dashboard(?:\?|$)/.test(url)&&response.ok){const data=await response.clone().json(),body=JSON.stringify(overlay(data));return new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers});}}catch(error){console.warn('Plan continuity overlay',error);}return response;};
   window.coachPlanContinuity={read,capture,markDeleted,restoreBackend,overlay};
   setTimeout(async()=>{await restoreBackend();try{if(typeof safeReload==='function')await safeReload();}catch{}},900);
