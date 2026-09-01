@@ -1,3 +1,4 @@
+if(!window.__coachSafeJsonPatched){window.__coachSafeJsonPatched=true;const nativeJson=Response.prototype.json;Response.prototype.json=async function(){try{return await nativeJson.call(this.clone());}catch(parseError){const raw=await this.text().catch(()=>''),text=String(raw||'').trim();const timeout=/timed out|timeout|an error occurred|function_invocation_failed/i.test(text);return{error:timeout?'Le Coach a mis trop de temps à construire le plan. Réessaie dans quelques instants.':(text||`Réponse serveur invalide (${this.status})`),_nonJson:true,status:this.status};}};}
 let freshnessLoadedDay='';
 function runtimeLocalDateIso(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function runtimeFormatToday(v){return new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(new Date(`${v}T12:00:00`));}
