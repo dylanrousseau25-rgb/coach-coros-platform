@@ -7,7 +7,8 @@ function daysBetween(a,b){if(!a||!b)return 0;return Math.max(0,Math.round((dateO
 function parsePaceSeconds(value){if(!value)return null;const m=String(value).match(/(\d{1,2})\s*[:']\s*(\d{2})/);return m?Number(m[1])*60+Number(m[2]):null;}
 function parseMinutes(value){
   if(value==null||value==='')return null;if(typeof value==='number')return value;
-  const s=String(value).trim();let m=s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(m)return Number(m[1])*60+Number(m[2])+Number(m[3]||0)/60;
+  const s=String(value).trim();let m=s.match(/(\d{1,2}):(\d{2}):(\d{2})/);if(m)return Number(m[1])*60+Number(m[2])+Number(m[3])/60;
+  m=s.match(/(\d{1,2}):(\d{2})/);if(m){const a=Number(m[1]),b=Number(m[2]);return a<=10?a*60+b:a+b/60;}
   m=s.match(/(\d+)\s*h(?:\s*(\d+)\s*(?:min|m)?)?/i);if(m)return Number(m[1])*60+Number(m[2]||0);
   m=s.match(/(\d+)\s*(?:min|m)\b/i);if(m)return Number(m[1]);
   return null;
