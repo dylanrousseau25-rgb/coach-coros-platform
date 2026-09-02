@@ -4,6 +4,8 @@ import { syncCorosV2 } from './coros-sync-v2.mjs';
 import { enhanceCorosSync } from './coros-extras.mjs';
 import { loadRecentCorosActivityRefs } from './coros-recent.mjs';
 import { reconcileCorosActivities, auditPocState, restorePocExtras } from './poc-reconcile.mjs';
+import { normalizeObjectivePayload } from './plan-engine.mjs';
+import { assessGoalFeasibility, feasibilityDisplay } from './goal-feasibility.mjs';
 
 function json(body,status=200,cookies=[]){const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(JSON.stringify(body),{status,headers});}
 function redirect(location,cookies=[]){const headers=new Headers({location,'cache-control':'no-store'});for(const v of cookies)headers.append('set-cookie',v);return new Response(null,{status:302,headers});}
@@ -32,6 +34,19 @@ if(method==='POST'&&route==='coros/sync'){
 if(method==='POST'&&route==='coros/disconnect')return json({ok:true},200,disconnectCoros());
 if(method==='GET'&&route==='dashboard'){const baseResponse=await baseRouter.fetch(request),base=await baseResponse.json();if(!baseResponse.ok)return json(base,baseResponse.status);return json(overlayCorosDashboard(base,request));}
 if(method==='GET'&&route==='poc/audit')return json(await auditPocState());
+if(method==='POST'&&route==='objectives/assess'){
+  const payload=await request.json().catch(()=>({})),objective=normalizeObjectivePayload(payload),dashboard=await liveDashboard(request);
+  if(!objective.title)return json({error:"Nom de l'objectif requis"},400);
+  if(/course|trail/i.test(objective.sport||'')&&!objective.distanceKm)return json({error:'Distance requise pour évaluer cet objectif.'},400);
+  const assessment=feasibilityDisplay(assessGoalFeasibility(dashboard,objective));
+  return json({ok:true,objective,assessment});
+}
+let feasibilityMatch=route.match(/^objectives\/([^/]+)\/feasibility$/);
+if(method==='GET'&&feasibilityMatch){
+  const dashboard=await liveDashboard(request),objective=(dashboard.objectives||[]).find(o=>o.id===decodeURIComponent(feasibilityMatch[1]));
+  if(!objective)return json({error:'Objectif introuvable'},404);
+  return json({ok:true,objectiveId:objective.id,assessment:feasibilityDisplay(assessGoalFeasibility(dashboard,objective))});
+}
 if(method==='POST'&&route==='plans/continuity/restore'){
   const payload=await request.json().catch(()=>({}));
   await restorePocExtras(payload);
