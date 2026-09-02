@@ -52,6 +52,16 @@
     }
   }
 
+  function loadGoalFeasibility() {
+    if (document.querySelector('script[data-goal-feasibility]')) return;
+    const script = document.createElement('script');
+    script.src = '/goal-feasibility.js';
+    script.async = false;
+    script.setAttribute('data-goal-feasibility', 'true');
+    document.head.appendChild(script);
+  }
+
   window.coachPocAudit = pocAudit;
+  loadGoalFeasibility();
   setTimeout(pocAudit, 2200);
 })();
